@@ -30,7 +30,6 @@ public final class CalendarRunner {
   public static void main(final String[] args) {
     ApplicationManager model = new ApplicationManagerImpl();
 
-    // GUI Mode (No arguments)
     if (args.length == 0) {
       SwingUtilities.invokeLater(() -> {
         GuiController controller = new GuiController(model);
@@ -41,7 +40,6 @@ public final class CalendarRunner {
       return;
     }
 
-    // Text/Headless Modes
     String modeFlag = args[0].toLowerCase();
 
     if (!modeFlag.equals("--mode") || args.length < 2) {
@@ -115,6 +113,60 @@ public final class CalendarRunner {
   }
 
   private static void printWelcomeMenu(CalendarView view) {
-    view.showMessage("Welcome to the Virtual Calendar (Text Mode).");
+    view.showMessage("Welcome to the Virtual Calendar\n"
+        + "\n"
+        + "You are in interactive mode. The application is ready for your commands.\n"
+        + "* Type your command after the > prompt and press Enter.\n"
+        + "* Type 'exit' at any time to close the application.\n"
+        + "-----------------------------------------------------------------\n"
+        + "--- How to Write Commands ---\n"
+        + "\n"
+        + "* Subjects/Names with Spaces: If a calendar name or event subject has spaces\n"
+        + "    (e.g., \"Team Meeting\"), you MUST enclose it in double quotes.\n"
+        + "    > Correct:   create calendar --name \"Work Calendar\" --timezone America/New_York\n"
+        + "    > Incorrect: create calendar --name Work Calendar ...\n"
+        + "\n"
+        + "* Keywords: Command keywords (e.g., 'create', 'from') are case-insensitive.\n"
+        + "* Values: Calendar names and event details ARE case-sensitive.\n"
+        + "\n"
+        + "--- Command Format Key ---\n"
+        + "  <calName>    A string, in quotes if it has spaces (e.g., \"Personal\")\n"
+        + "  <timezone>   area/location format (e.g., America/New_York, Europe/Paris)\n"
+        + "  <subject>    A string, in quotes if it has spaces (e.g., \"Final Exam\")\n"
+        + "  <date>       YYYY-MM-DD (e.g., 2025-12-01)\n"
+        + "  <time>       hh:mm (24-hour) (e.g., 09:00 or 14:30)\n"
+        + "  <datetime>   YYYY-MM-DDThh:mm (e.g., 2025-12-01T09:00)\n"
+        + "  <weekdays>   Sequence of chars (M,T,W,R,F,S,U) (e.g., MWF)\n"
+        + "  <property>   A keyword (e.g., subject, start, location, status, name, timezone)\n"
+        + "  <newValue>   A string or datetime, based on the property\n"
+        + "\n"
+        + "--- Command Reference ---\n"
+        + "\n"
+        + "  1. Manage Calendars\n"
+        + "  > create calendar --name <calName> --timezone <timezone>\n"
+        + "  > edit calendar --name <calName> --property <name|timezone> <newValue>\n"
+        + "  > use calendar --name <calName>\n"
+        + "\n"
+        + "  2. Manage Events (Requires an active calendar)\n"
+        + "  > create event <subject> from <datetime> to <datetime>\n"
+        + "  > create event <subject> on <date>\n"
+        + "  > create event ... [repeats <weekdays> for <N> times | until <date>]\n"
+        + "  > edit event <property> <subject> from <datetime> to <datetime> with <newValue>\n"
+        + "  > edit events <property> <subject> from <datetime> with <newValue>\n"
+        + "  > edit series <property> <subject> from <datetime> with <newValue>\n"
+        + "\n"
+        + "  3. Query & Copy (Requires an active calendar)\n"
+        + "  > print events on <date>\n"
+        + "  > print events from <datetime> to <datetime>\n"
+        + "  > show status on <datetime>\n"
+        + "  > copy event <subject> on <datetime> --target <calName> to <datetime>\n"
+        + "  > copy events on <date> --target <calName> to <date>\n"
+        + "  > copy events between <date> and <date> --target <calName> to <date>\n"
+        + "\n"
+        + "  4. Miscellaneous\n"
+        + "  > export cal <fileName.csv | fileName.ical>\n"
+        + "  > exit\n"
+        + "-----------------------------------------------------------------\n"
+        + "Ready for your first command.");
   }
 }
