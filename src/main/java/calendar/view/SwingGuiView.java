@@ -61,7 +61,8 @@ public class SwingGuiView extends JFrame implements GuiView {
   private static final Color EVENT_BG_COLOR = new Color(220, 240, 255);
   private static final Color EVENT_BORDER_COLOR = new Color(100, 150, 200);
 
-  private static final DateTimeFormatter DETAILS_DATE_FMT = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy");
+  private static final DateTimeFormatter DETAILS_DATE_FMT =
+      DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy");
   private static final DateTimeFormatter DETAILS_TIME_FMT = DateTimeFormatter.ofPattern("h:mm a");
 
   /**
@@ -304,8 +305,12 @@ public class SwingGuiView extends JFrame implements GuiView {
 
   private JScrollPane createDetailsContent(Event event) {
     JPanel content = new JPanel();
-    String startStr = event.getStart().format(DETAILS_DATE_FMT) + " at " + event.getStart().format(DETAILS_TIME_FMT);
-    String endStr = event.getEnd().format(DETAILS_DATE_FMT) + " at " + event.getEnd().format(DETAILS_TIME_FMT);
+    final String startStr = event.getStart().format(DETAILS_DATE_FMT)
+        + " at "
+        + event.getStart().format(DETAILS_TIME_FMT);
+    final String endStr = event.getEnd().format(DETAILS_DATE_FMT)
+        + " at "
+        + event.getEnd().format(DETAILS_TIME_FMT);
     content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
     content.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
     addDetail(content, "Subject: ", event.getSubject());
