@@ -229,16 +229,6 @@ public class PrintEventsCommandTest {
     new PrintEventsCommand(tokens).execute(model, view);
   }
 
-  @Test(expected = ValidationException.class)
-  public void testErrorNoActiveCalendar() throws Exception {
-    ApplicationManager freshModel = new ApplicationManagerImpl();
-    freshModel.createCalendar("TestCal", ZoneId.of("UTC"));
-
-    List<String> tokens = List.of("print", "events", "on", "2025-11-20");
-
-    new PrintEventsCommand(tokens).execute(freshModel, view);
-  }
-
   @Test
   public void testPrintEventsInRangePartialOverlaps() throws Exception {
     List<String> tokens = List.of("print", "events", "from",

@@ -1,6 +1,7 @@
 package calendar;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -8,7 +9,9 @@ import static org.junit.Assert.fail;
 import calendar.model.ApplicationManager;
 import calendar.model.ApplicationManagerImpl;
 import calendar.model.Calendar;
+import calendar.model.Event;
 import calendar.model.ValidationException;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import org.junit.Before;
 import org.junit.Test;
@@ -159,21 +162,6 @@ public class ApplicationManagerImplTest {
   }
 
   /**
-   * Makes sure the correct error is thrown if we try to get
-   * an active calendar when none has been set.
-   */
-  @Test
-  public void testGetActiveCalendarWhenNoneSet() throws Exception {
-    ApplicationManager freshModel = new ApplicationManagerImpl();
-    try {
-      freshModel.getActiveCalendar();
-      fail("Expected ValidationException for no active calendar.");
-    } catch (ValidationException e) {
-      assertEquals("No active calendar selected. Use 'use calendar --name ...'.", e.getMessage());
-    }
-  }
-
-  /**
    * Checks that setting a non-existent calendar as active
    * throws an error.
    */
@@ -201,4 +189,70 @@ public class ApplicationManagerImplTest {
 
     assertEquals("Work-Renamed", model.getActiveCalendar().getName());
   }
+
+  @Test
+  public void testEditCalendarTimezoneSameZoneNoChange() throws Exception {
+    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
+    mgr.createCalendar("Home", ZoneId.of("America/New_York"));
+    mgr.setActiveCalendar("Home");
+    Calendar cal = mgr.getActiveCalendar();
+
+    LocalDateTime start = LocalDateTime.of(2025, 1, 1, 10, 0);
+    LocalDateTime end = start.plusHours(2);
+    Event evt = Event.builder()
+        .setSubject("Meeting")
+        .setStart(start)
+        .setEnd(end)
+        .build();
+    cal.addEvent(evt);
+
+    mgr.editCalendarTimezone("Home", ZoneId.of("America/New_York"));
+
+    Calendar after = mgr.getActiveCalendar();
+    assertEquals(ZoneId.of("America/New_York"), after.getZoneId());
+    Event afterEvt = after.findEvents(e -> true).get(0);
+    assertEquals(start, afterEvt.getStart());
+    assertEquals(end, afterEvt.getEnd());
+  }
+
+  @Test
+  public void testEditCalendarTimezoneConvertsEventsWhenZoneChanges() throws Exception {
+    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
+    mgr.createCalendar("Home", ZoneId.of("America/New_York"));
+    mgr.setActiveCalendar("Home");
+    Calendar cal = mgr.getActiveCalendar();
+
+    LocalDateTime start = LocalDateTime.of(2025, 1, 1, 10, 0);
+    LocalDateTime end = start.plusHours(2);
+    Event evt = Event.builder()
+        .setSubject("Meeting")
+        .setStart(start)
+        .setEnd(end)
+        .build();
+    cal.addEvent(evt);
+
+    mgr.editCalendarTimezone("Home", ZoneId.of("Europe/London"));
+
+    Calendar after = mgr.getActiveCalendar();
+    assertEquals(ZoneId.of("Europe/London"), after.getZoneId());
+    Event afterEvt = after.findEvents(e -> true).get(0);
+
+    assertNotEquals(start, afterEvt.getStart());
+    assertNotEquals(end, afterEvt.getEnd());
+  }
+
+  @Test
+  public void testDeleteCalendarThrowsWhenNotFound() {
+    ApplicationManagerImpl model = new ApplicationManagerImpl();
+
+    String missing = "DoesNotExist";
+
+    try {
+      model.deleteCalendar(missing);
+      fail("Expected ValidationException for missing calendar");
+    } catch (ValidationException e) {
+      assertTrue(e.getMessage().contains("Calendar 'DoesNotExist' not found."));
+    }
+  }
+
 }

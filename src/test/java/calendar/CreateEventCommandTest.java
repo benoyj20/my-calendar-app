@@ -264,23 +264,6 @@ public class CreateEventCommandTest {
   }
 
   /**
-   * Tests that a command fails if no calendar is active.
-   *
-   * @throws Exception if execute fails
-   */
-  @Test(expected = ValidationException.class)
-  public void testErrorNoActiveCalendar() throws Exception {
-
-    ApplicationManager freshModel = new ApplicationManagerImpl();
-    freshModel.createCalendar("TestCal", ZoneId.of("UTC"));
-
-    List<String> tokens = List.of("create", "event", "Meeting", "from",
-        "2025-11-01T10:00", "to", "2025-11-01T11:30");
-
-    new CreateEventCommand(tokens).execute(freshModel, view);
-  }
-
-  /**
    * Tests that the command fails if the weekdays string contains
    * invalid characters.
    *

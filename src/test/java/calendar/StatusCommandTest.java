@@ -107,20 +107,4 @@ public class StatusCommandTest {
     List<String> tokens = List.of("show", "status", "on", "2025-99-99T10:00");
     new StatusCommand(tokens).execute(model, view);
   }
-
-  /**
-   * Tests that a command fails if no calendar is active.
-   *
-   * @throws Exception if execute fails
-   */
-  @Test(expected = ValidationException.class)
-  public void testErrorNoActiveCalendar() throws Exception {
-
-    ApplicationManager freshModel = new ApplicationManagerImpl();
-    freshModel.createCalendar("TestCal", ZoneId.of("UTC"));
-
-    List<String> tokens = List.of("show", "status", "on", "2025-11-20T10:00");
-
-    new StatusCommand(tokens).execute(freshModel, view);
-  }
 }

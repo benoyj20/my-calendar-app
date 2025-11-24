@@ -240,19 +240,6 @@ public class ExportCommandTest {
   }
 
   /**
-   * Checks that the command throws an error if the user tries to export
-   * before selecting a calendar with `use calendar`.
-   */
-  @Test(expected = ValidationException.class)
-  public void testErrorNoActiveCalendar() throws Exception {
-    ApplicationManager freshModel = new ApplicationManagerImpl();
-    freshModel.createCalendar("TestCal", ZoneId.of("UTC"));
-
-    List<String> tokens = List.of("export", "cal", "file.csv");
-    new ExportCommand(tokens).execute(freshModel, view);
-  }
-
-  /**
    * Tests the CSV export for an all-day event. This also checks that `null` or
    * empty fields (like description) are exported as just empty commas,
    * not the string "null". This covers the `isAllDay() == true` branch

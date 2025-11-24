@@ -9,6 +9,7 @@ import calendar.controller.commands.EditEventCommand;
 import calendar.controller.commands.ExitCommand;
 import calendar.controller.commands.ExportCommand;
 import calendar.controller.commands.PrintEventsCommand;
+import calendar.controller.commands.SearchAndEditCommand;
 import calendar.controller.commands.StatusCommand;
 import calendar.controller.commands.UnknownCommand;
 import calendar.controller.commands.UseCalendarCommand;
@@ -41,6 +42,7 @@ public class CommandParser {
     commandMap.put("print events", PrintEventsCommand::new);
     commandMap.put("export cal", ExportCommand::new);
     commandMap.put("show status", StatusCommand::new);
+    commandMap.put("search edit", SearchAndEditCommand::new);
     commandMap.put("exit", tokens -> new ExitCommand());
   }
 

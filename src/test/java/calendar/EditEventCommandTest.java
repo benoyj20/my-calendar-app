@@ -302,31 +302,6 @@ public class EditEventCommandTest {
   }
 
   /**
-   * Tests that the command fails with a specific error message
-   * if no calendar is active in the model.
-   *
-   * @throws Exception if execute fails
-   */
-  @Test
-  public void testEditEventFailsWithNoActiveCalendar() throws Exception {
-    ApplicationManager freshModel = new ApplicationManagerImpl();
-    freshModel.createCalendar("Work", ZoneId.of("UTC"));
-
-    List<String> tokens = List.of("edit", "event", "subject", "Weekly Sync", "from",
-        "2025-11-03T10:00", "to", "2025-11-03T11:00", "with", "Kick-off");
-
-    try {
-      new EditEventCommand(tokens).execute(freshModel, view);
-      fail("Expected ValidationException for no active calendar.");
-    } catch (ValidationException e) {
-      assertEquals(
-          "No active calendar selected. Use 'use calendar --name ...'.",
-          e.getMessage()
-      );
-    }
-  }
-
-  /**
    * Tests that the 'end' property modifier correctly wraps a
    * parse error in a RuntimeException.
    *

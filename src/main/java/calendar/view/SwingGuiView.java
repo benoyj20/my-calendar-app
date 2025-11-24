@@ -142,6 +142,13 @@ public class SwingGuiView extends JFrame implements GuiView {
 
   private JPanel createActionPanel() {
     JPanel p = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
+    p.add(createButton("Search and Edit", () -> {
+      if (ensureCalendarSelected()) {
+        new SearchAndEditDialog(this, features).setVisible(true);
+      }
+    }));
+
     p.add(createButton("Export Calendar", () -> {
       if (ensureCalendarSelected()) {
         showExportDialog();

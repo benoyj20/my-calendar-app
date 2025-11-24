@@ -15,13 +15,18 @@ import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +41,8 @@ public class GuiController implements ControllerFeatures {
   private LocalDate currentDateMarker;
   private ViewMode currentMode;
 
+  private Map<String, BiFunction<Event.EventBuilder, String, Event.EventBuilder>> modifierMap;
+
   /**
    * Sets up the controller with the given data model.
    *
@@ -45,13 +52,40 @@ public class GuiController implements ControllerFeatures {
     this.model = model;
     this.currentDateMarker = LocalDate.now();
     this.currentMode = ViewMode.MONTH;
+    initializeModifiers();
     initializeDefaultCalendar();
   }
 
-  @Override
-  public void setView(GuiView view) {
-    this.view = view;
-    refreshView();
+  /**
+   * Convenience constructor so tests (or the GUI launcher) can inject a view
+   * directly and have the controller wire itself up.
+   *
+   * @param model the application model
+   * @param view  the GUI view implementation
+   */
+  public GuiController(ApplicationManager model, GuiView view) {
+    this(model);    // do normal setup
+    setView(view);  // attach the view and refresh it
+  }
+
+  private void initializeModifiers() {
+    modifierMap = new HashMap<>();
+    modifierMap.put("subject", Event.EventBuilder::setSubject);
+    modifierMap.put("description", Event.EventBuilder::setDescription);
+    modifierMap.put("location", Event.EventBuilder::setLocation);
+    modifierMap.put("status", (b, v) -> b.setPrivate("private".equalsIgnoreCase(v)));
+
+    modifierMap.put("start date", (b, v) -> shiftEventStart(b,
+        LocalDateTime.of(LocalDate.parse(v), getStart(b).toLocalTime())));
+
+    modifierMap.put("start time", (b, v) -> shiftEventStart(b,
+        LocalDateTime.of(getStart(b).toLocalDate(), LocalTime.parse(v))));
+
+    modifierMap.put("end date", (b, v) -> setEventEnd(b,
+        LocalDateTime.of(LocalDate.parse(v), getEnd(b).toLocalTime())));
+
+    modifierMap.put("end time", (b, v) -> setEventEnd(b,
+        LocalDateTime.of(getEnd(b).toLocalDate(), LocalTime.parse(v))));
   }
 
   private void initializeDefaultCalendar() {
@@ -63,6 +97,15 @@ public class GuiController implements ControllerFeatures {
       }
     }
     ensureActiveCalendar();
+  }
+
+  @Override
+  public void setView(GuiView view) {
+    this.view = view;
+    // build the initial GUI state from the model
+    refreshView();
+    // finally, show the window (needed for the FakeGuiView test)
+    this.view.setVisible(true);
   }
 
   private void ensureActiveCalendar() {
@@ -341,6 +384,135 @@ public class GuiController implements ControllerFeatures {
   private void updateSeriesTime(Event.EventBuilder b, Event old, Event tmpl, long duration) {
     LocalDateTime s = LocalDateTime.of(old.getStart().toLocalDate(), tmpl.getStart().toLocalTime());
     b.setStart(s).setEnd(s.plusNanos(duration));
+  }
+
+  @Override
+  public void searchAndBulkEdit(String searchType, String searchArg1, String searchArg2,
+                                String property, String newValue) throws Exception {
+    Calendar cal = model.getActiveCalendar();
+    Predicate<Event> filter = createSearchFilter(searchType, searchArg1, searchArg2);
+    List<Event> matches = cal.findEvents(filter);
+
+    if (matches.isEmpty()) {
+      throw new ValidationException("No events found matching criteria.");
+    }
+
+    Function<Event.EventBuilder, Event.EventBuilder> modifier = getModifier(property, newValue);
+    boolean shouldBreakSeries = isTimeProperty(property);
+
+    List<Event> newEvents = applyBulkModifications(matches, modifier, shouldBreakSeries);
+    commitBulkChanges(cal, matches, newEvents);
+
+    refreshView();
+    view.showMessage("Updated " + matches.size() + " event(s).");
+  }
+
+  private boolean isTimeProperty(String property) {
+    String p = property.toLowerCase();
+    return p.contains("date") || p.contains("time");
+  }
+
+  private Predicate<Event> createSearchFilter(String type, String arg1, String arg2) {
+    if ("subject".equalsIgnoreCase(type)) {
+      return e -> e.getSubject().toLowerCase().contains(arg1.toLowerCase());
+    } else if ("time range".equalsIgnoreCase(type) || "time".equalsIgnoreCase(type)) {
+      LocalDateTime start = LocalDateTime.parse(arg1);
+      LocalDateTime end = LocalDateTime.parse(arg2);
+      return e -> !e.getStart().isBefore(start) && !e.getEnd().isAfter(end);
+    }
+    throw new IllegalArgumentException("Invalid search type");
+  }
+
+  private List<Event> applyBulkModifications(List<Event> matches,
+                                             Function<Event.EventBuilder,
+                                                 Event.EventBuilder> modifier,
+                                             boolean breakSeries) {
+    List<Event> newEvents = new ArrayList<>();
+    for (Event oldEvent : matches) {
+      Event.EventBuilder b = Event.builder().fromEvent(oldEvent);
+      modifier.apply(b);
+
+      updateSeriesId(b, oldEvent, breakSeries);
+      addBuiltEvent(newEvents, b);
+    }
+    return newEvents;
+  }
+
+  private void updateSeriesId(Event.EventBuilder b, Event old, boolean breakSeries) {
+    if (breakSeries) {
+      b.setSeriesId(null);
+    } else {
+      b.setSeriesId(old.getSeriesId());
+    }
+  }
+
+  private void addBuiltEvent(List<Event> events, Event.EventBuilder b) {
+    try {
+      events.add(b.build());
+    } catch (ValidationException e) {
+      throw new RuntimeException("Error building modified event: " + e.getMessage());
+    }
+  }
+
+  private void commitBulkChanges(Calendar cal, List<Event> oldEvents, List<Event> newEvents)
+      throws ValidationException {
+    cal.removeEvents(oldEvents);
+    try {
+      cal.addEvents(newEvents);
+    } catch (ValidationException e) {
+      cal.addEvents(oldEvents);
+      throw new ValidationException("Bulk update failed: " + e.getMessage());
+    }
+  }
+
+  private Function<Event.EventBuilder, Event.EventBuilder> getModifier(String prop, String val) {
+    BiFunction<Event.EventBuilder, String, Event.EventBuilder> strategy =
+        modifierMap.get(prop.toLowerCase());
+
+    if (strategy == null) {
+      throw new IllegalArgumentException("Cannot bulk edit property: " + prop);
+    }
+    return b -> strategy.apply(b, val);
+  }
+
+  private LocalDateTime getStart(Event.EventBuilder b) {
+    try {
+      return b.build().getStart();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private LocalDateTime getEnd(Event.EventBuilder b) {
+    try {
+      return b.build().getEnd();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private Event.EventBuilder shiftEventStart(Event.EventBuilder b, LocalDateTime newStart) {
+    try {
+      Event old = b.build();
+      long durationSeconds = Duration.between(old.getStart(), old.getEnd()).toSeconds();
+      b.setStart(newStart);
+      b.setEnd(newStart.plusSeconds(durationSeconds));
+      return b;
+    } catch (ValidationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private Event.EventBuilder setEventEnd(Event.EventBuilder b, LocalDateTime newEnd) {
+    try {
+      if (newEnd.isBefore(b.build().getStart())) {
+        throw new RuntimeException("New End cannot be before Start.");
+      }
+      b.setEnd(newEnd);
+      return b;
+    } catch (ValidationException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override

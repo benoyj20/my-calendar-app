@@ -134,4 +134,17 @@ public interface ControllerFeatures {
    * @param view The main GUI window interface.
    */
   void setView(GuiView view);
+
+  /**
+   * Searches for events matching the criteria and updates a specific property for all of them.
+   *
+   * @param searchType "subject" or "time"
+   * @param searchArg1 The subject string or the start time string.
+   * @param searchArg2 The end time string (only used if searchType is "time").
+   * @param property   The property to edit (e.g., "location", "status").
+   * @param newValue   The new value to apply.
+   * @throws Exception If validation fails or formats are incorrect.
+   */
+  void searchAndBulkEdit(String searchType, String searchArg1, String searchArg2,
+                         String property, String newValue) throws Exception;
 }

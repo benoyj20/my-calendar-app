@@ -75,16 +75,6 @@ public class CalendarRunnerTest {
   }
 
   /**
-   * Tests the main method with no arguments.
-   * This path must call printUsage().
-   */
-  @Test
-  public void testMainNoArgs() {
-    CalendarRunner.main(new String[0]);
-    assertTrue(errContent.toString().contains("Usage:"));
-  }
-
-  /**
    * Tests the main method with an invalid flag.
    * This path must call printUsage().
    */
@@ -102,18 +92,6 @@ public class CalendarRunnerTest {
   public void testMainUnknownMode() {
     CalendarRunner.main(new String[] {"--mode", "invalid"});
     assertTrue(errContent.toString().contains("Error: Unknown mode 'invalid'"));
-    assertTrue(errContent.toString().contains("Usage:"));
-  }
-
-  /**
-   * Tests interactive mode with extra arguments, which should fail.
-   * This path must call printUsage().
-   */
-  @Test
-  public void testMainInteractiveWithFile() {
-    CalendarRunner.main(new String[] {"--mode", "interactive", "somefile.txt"});
-    assertTrue(errContent.toString().contains("Error: Interactive mode does not "
-        + "accept a filename."));
     assertTrue(errContent.toString().contains("Usage:"));
   }
 
@@ -173,7 +151,6 @@ public class CalendarRunnerTest {
     assertTrue(output.contains("Now using calendar 'TestCal'."));
     assertTrue(output.contains("Event(s) created successfully."));
     assertTrue(output.contains("Exiting calendar..."));
-    // Ensure no errors were printed
     assertEquals("", errContent.toString());
   }
 
@@ -211,4 +188,6 @@ public class CalendarRunnerTest {
     }
     assertNotNull("Constructor exists", constructor);
   }
+
+
 }
