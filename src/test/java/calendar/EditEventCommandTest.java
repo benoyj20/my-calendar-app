@@ -353,7 +353,6 @@ public class EditEventCommandTest {
 
   /**
    * Tests successfully editing the 'end' property of a single event.
-   * This covers the 'if (property.equalsIgnoreCase("end"))' branch.
    *
    * @throws Exception if execute fails
    */

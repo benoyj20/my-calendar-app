@@ -52,7 +52,7 @@ public class CalendarControllerTest {
 
   /**
    * Tests a run loop with valid commands.
-   * This test now also covers calendar creation and usage.
+   * This test also covers calendar creation and usage.
    */
   @Test
   public void testControllerRunLoop() throws Exception {

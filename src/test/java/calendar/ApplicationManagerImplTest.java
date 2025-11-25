@@ -255,4 +255,75 @@ public class ApplicationManagerImplTest {
     }
   }
 
+  @Test
+  public void testEditCalendarNameUpdatesActiveCalendarWhenNamesMatch() throws Exception {
+    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
+
+    mgr.createCalendar("Work", ZoneId.systemDefault());
+
+    assertEquals("Work", mgr.getActiveCalendar().getName());
+
+    mgr.editCalendarName("Work", "Office");
+
+    assertEquals("Office", mgr.getActiveCalendar().getName());
+  }
+
+  @Test
+  public void testEditCalendarNameNotUpdateWhenNamesMismatch() throws Exception {
+    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
+
+    mgr.createCalendar("Primary", ZoneId.systemDefault());
+    mgr.createCalendar("Secondary", ZoneId.systemDefault());
+
+    assertEquals("Primary", mgr.getActiveCalendar().getName());
+
+    mgr.editCalendarName("Secondary", "Renamed");
+
+    assertEquals("Primary", mgr.getActiveCalendar().getName());
+  }
+
+  @Test
+  public void testDeleteCalendarActiveBecomesNullWhenLastCalendarRemoved() throws Exception {
+    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
+
+    mgr.createCalendar("A", ZoneId.systemDefault());
+    assertEquals("A", mgr.getActiveCalendar().getName());
+
+    mgr.deleteCalendar("A");
+
+    try {
+      mgr.getActiveCalendar();
+      fail("Should throw ValidationException when no active calendar exists");
+    } catch (ValidationException expected) {
+    }
+
+  }
+
+  @Test
+  public void testDeleteCalendarActiveSwitchesToAnotherWhenOthersExist() throws Exception {
+    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
+
+    mgr.createCalendar("A", ZoneId.systemDefault());
+    mgr.createCalendar("B", ZoneId.systemDefault());
+
+    assertEquals("A", mgr.getActiveCalendar().getName());
+
+    mgr.deleteCalendar("A");
+
+    assertEquals("B", mgr.getActiveCalendar().getName());
+  }
+
+  @Test
+  public void testDeleteCalendarNonActiveDoesNotChangeActive() throws Exception {
+    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
+
+    mgr.createCalendar("A", ZoneId.systemDefault());
+    mgr.createCalendar("B", ZoneId.systemDefault());
+
+    assertEquals("A", mgr.getActiveCalendar().getName());
+
+    mgr.deleteCalendar("B");
+
+    assertEquals("A", mgr.getActiveCalendar().getName());
+  }
 }

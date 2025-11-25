@@ -31,9 +31,9 @@ public class ExportCommandTest {
   private TestView view;
 
   /**
-   * Set up a model with a few different events before each test. We need one
-   * simple event, one with weird characters to check escaping, and one that's
-   * all-day with empty fields.
+   * Sets up a small mix of events before each test — a normal one,
+   * one with special characters to test escaping, and an all-day
+   * event with mostly empty fields.
    */
   @Before
   public void setUp() throws ValidationException {
@@ -101,7 +101,7 @@ public class ExportCommandTest {
   private File tempIcalFile = null;
 
   /**
-   * Clean up any temporary files we created so we don't pollute the file system.
+   * Cleans up any temporary files we created so we don't pollute the file system.
    */
   @After
   public void tearDown() {
@@ -158,10 +158,6 @@ public class ExportCommandTest {
     ));
   }
 
-  /**
-   * This test is now stronger and checks for all required iCal lines
-   * to satisfy mutation testing coverage.
-   */
   @Test
   public void testExportSuccessIcal() throws Exception {
     tempIcalFile = File.createTempFile("test_cal_export", ".ical");
@@ -242,8 +238,7 @@ public class ExportCommandTest {
   /**
    * Tests the CSV export for an all-day event. This also checks that `null` or
    * empty fields (like description) are exported as just empty commas,
-   * not the string "null". This covers the `isAllDay() == true` branch
-   * and the `text.isEmpty()` branch.
+   * not the string "null".
    */
   @Test
   public void testExportCoversAllDayAndEmptyFields() throws Exception {

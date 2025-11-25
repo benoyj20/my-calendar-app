@@ -29,10 +29,8 @@ import org.junit.Test;
  */
 public class SearchAndEditCommandTest {
 
-  // ---------- helpers ----------
-
   /**
-   * Build a model with one calendar "Work" and two events.
+   * Builds a model with one calendar "Work" and two events.
    *
    * <ul>
    *   <li>"meeting" from 2025-11-23T10:00 to 11:00</li>

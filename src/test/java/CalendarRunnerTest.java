@@ -172,6 +172,7 @@ public class CalendarRunnerTest {
         + "ended without an 'exit' command."));
   }
 
+
   /**
    * Tests the private constructor for 100% code coverage.
    *

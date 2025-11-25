@@ -23,7 +23,7 @@ public class UseCalendarCommandTest {
 
 
   /**
-   * Sets up a fresh model and view, and create a
+   * Sets up a fresh model and view, and creates a
    * calendar that we can try to "use".
    */
   @Before

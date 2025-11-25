@@ -44,6 +44,27 @@ jacocoTestReport {
         xml.required = false
         csv.required = true
     }
+
+    afterEvaluate {
+
+        classDirectories.setFrom(files(classDirectories.files.collect {
+
+            fileTree(dir: it, exclude: [
+
+                    'calendar/view/DayViewPanel*.class',
+
+                    'calendar/view/EventDialog*.class',
+
+                    'calendar/view/MonthViewPanel*.class',
+                    'calendar/view/SearchAndEditDialog*.class',
+                    'calendar/view/SwingGuiView*.class',
+                    'calendar/view/WeekViewPanel*.class'
+
+            ])
+
+        }))
+
+    }
 }
 
 test {

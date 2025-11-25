@@ -131,7 +131,7 @@ public class CopyCommandTest {
 
   /**
    * Tests the 'copy events between' syntax.
-   * This must test date shifting, timezone conversion, and series ID retention.
+   * This tests date shifting, timezone conversion, and series ID retention.
    *
    * @throws Exception if execute fails
    */
