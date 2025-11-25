@@ -17,9 +17,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Tests the {@link CalendarRunner} class, covering all branches of the
- * main() method, argument parsing, and modes (interactive/headless).
- *
+ * Verifies that the CalendarRunner acts as the correct entry point for the application,
+ * handling command-line arguments properly and launching either interactive or headless mode.
  */
 public class CalendarRunnerTest {
 
@@ -30,7 +29,8 @@ public class CalendarRunnerTest {
   private final InputStream originalIn = System.in;
 
   /**
-   * Redirects all standard I/O streams before each test.
+   * Redirects system I/O streams to internal buffers adn inspect the output
+   * and inject input during tests.
    */
   @Before
   public void setUpStreams() {
@@ -39,7 +39,7 @@ public class CalendarRunnerTest {
   }
 
   /**
-   * Restores all standard I/O streams after each test.
+   * Restore.
    */
   @After
   public void restoreStreams() {
@@ -48,23 +48,11 @@ public class CalendarRunnerTest {
     System.setIn(originalIn);
   }
 
-  /**
-   * Simulates user input for interactive mode tests.
-   *
-   * @param input The string to be fed into System.in
-   */
   private void simulateInput(String input) {
     ByteArrayInputStream inStream = new ByteArrayInputStream(input.getBytes());
     System.setIn(inStream);
   }
 
-  /**
-   * Creates a temporary command file for headless mode tests.
-   *
-   * @param content The commands to write to the file
-   * @return The created temporary file
-   * @throws Exception if file creation fails
-   */
   private File createTempCommandFile(String content) throws Exception {
     File tempFile = File.createTempFile("commands", ".txt");
     tempFile.deleteOnExit();
@@ -74,53 +62,15 @@ public class CalendarRunnerTest {
     return tempFile;
   }
 
-  /**
-   * Tests the main method with an invalid flag.
-   * This path must call printUsage().
-   */
   @Test
-  public void testMainBadFlag() {
-    CalendarRunner.main(new String[] {"--invalid", "interactive"});
-    assertTrue(errContent.toString().contains("Usage:"));
-  }
-
-  /**
-   * Tests the main method with an unknown mode.
-   * This path must call printUsage().
-   */
-  @Test
-  public void testMainUnknownMode() {
-    CalendarRunner.main(new String[] {"--mode", "invalid"});
-    assertTrue(errContent.toString().contains("Error: Unknown mode 'invalid'"));
-    assertTrue(errContent.toString().contains("Usage:"));
-  }
-
-  /**
-   * Tests headless mode with too few arguments, which should fail.
-   * This path must call printUsage().
-   */
-  @Test
-  public void testMainHeadlessNoFile() {
-    CalendarRunner.main(new String[] {"--mode", "headless"});
-    assertTrue(errContent.toString().contains("Error: Headless mode requires a filename."));
-    assertTrue(errContent.toString().contains("Usage:"));
-  }
-
-  /**
-   * Tests headless mode with a non-existent file path.
-   */
-  @Test
-  public void testMainHeadlessBadFile() {
-    String badPath = "non_existent_directory" + File.separator + "badfile.txt";
+  public void testFailsIfHeadlessFileIsMissing() {
+    String badPath = "folder_that_does_not_exist" + File.separator + "missing.txt";
     CalendarRunner.main(new String[] {"--mode", "headless", badPath});
     assertTrue(errContent.toString().contains("Failed to open command file"));
   }
 
-  /**
-   * Tests a successful run in interactive mode.
-   */
   @Test
-  public void testMainInteractiveSuccess() {
+  public void testRunsSuccessfullyInInteractiveMode() {
     simulateInput("exit" + System.lineSeparator());
     CalendarRunner.main(new String[] {"--mode", "interactive"});
 
@@ -129,57 +79,21 @@ public class CalendarRunnerTest {
     assertTrue(output.contains("Exiting calendar..."));
   }
 
-  /**
-   * Tests a successful run in headless mode.
-   *
-   * @throws Exception if file creation fails
-   */
   @Test
-  public void testMainHeadlessSuccess() throws Exception {
-    String commands = String.join(System.lineSeparator(),
-        "create calendar --name \"TestCal\" --timezone \"America/New_York\"",
-        "use calendar --name \"TestCal\"",
-        "create event \"Test\" on 2025-01-01",
-        "exit"
-    );
-    File cmdFile = createTempCommandFile(commands);
-    CalendarRunner.main(new String[] {"--mode", "headless", cmdFile.getAbsolutePath()});
-
-    String output = outContent.toString();
-    assertTrue(output.contains("Virtual Calendar (Headless Mode)"));
-    assertTrue(output.contains("Calendar 'TestCal' created successfully."));
-    assertTrue(output.contains("Now using calendar 'TestCal'."));
-    assertTrue(output.contains("Event(s) created successfully."));
-    assertTrue(output.contains("Exiting calendar..."));
-    assertEquals("", errContent.toString());
+  public void testFailsIfArgumentIsUnknown() {
+    CalendarRunner.main(new String[] {"--pizza", "interactive"});
+    assertTrue(errContent.toString().contains("Usage:"));
   }
 
-  /**
-   * Tests headless mode where the command file ends without an 'exit' command.
-   *
-   * @throws Exception if file creation fails
-   */
   @Test
-  public void testMainHeadlessNoExit() throws Exception {
-    File cmdFile = createTempCommandFile("create event Test on 2025-01-01");
-    CalendarRunner.main(new String[] {"--mode", "headless", cmdFile.getAbsolutePath()});
-
-    assertFalse(outContent.toString().contains("Event(s) created successfully."));
-
-    String errorOutput = errContent.toString();
-    assertTrue(errorOutput.contains("No calendar is active."));
-    assertTrue(errorOutput.contains("Error: Command file "
-        + "ended without an 'exit' command."));
+  public void testFailsIfModeIsInvalid() {
+    CalendarRunner.main(new String[] {"--mode", "virtual-reality"});
+    assertTrue(errContent.toString().contains("Error: Unknown mode 'virtual-reality'"));
+    assertTrue(errContent.toString().contains("Usage:"));
   }
 
-
-  /**
-   * Tests the private constructor for 100% code coverage.
-   *
-   * @throws Exception if reflection fails
-   */
   @Test
-  public void testPrivateConstructor() throws Exception {
+  public void testConstructorIsPrivate() throws Exception {
     Constructor<CalendarRunner> constructor = CalendarRunner.class.getDeclaredConstructor();
     constructor.setAccessible(true);
     try {
@@ -190,5 +104,43 @@ public class CalendarRunnerTest {
     assertNotNull("Constructor exists", constructor);
   }
 
+  @Test
+  public void testRunsSuccessfullyInHeadlessMode() throws Exception {
+    String commands = String.join(System.lineSeparator(),
+        "create calendar --name \"Project Alpha\" --timezone \"Europe/London\"",
+        "use calendar --name \"Project Alpha\"",
+        "create event \"Kickoff\" on 2025-05-01",
+        "exit"
+    );
+    File cmdFile = createTempCommandFile(commands);
+    CalendarRunner.main(new String[] {"--mode", "headless", cmdFile.getAbsolutePath()});
 
+    String output = outContent.toString();
+    assertTrue(output.contains("Virtual Calendar (Headless Mode)"));
+    assertTrue(output.contains("Calendar 'Project Alpha' created successfully."));
+    assertTrue(output.contains("Now using calendar 'Project Alpha'."));
+    assertTrue(output.contains("Event(s) created successfully."));
+    assertTrue(output.contains("Exiting calendar..."));
+    assertEquals("", errContent.toString());
+  }
+
+  @Test
+  public void testFailsIfHeadlessMissingFilename() {
+    CalendarRunner.main(new String[] {"--mode", "headless"});
+    assertTrue(errContent.toString().contains("Error: Headless mode requires a filename."));
+    assertTrue(errContent.toString().contains("Usage:"));
+  }
+
+  @Test
+  public void testFailsIfHeadlessScriptHasNoExit() throws Exception {
+    File cmdFile = createTempCommandFile("create event 'Forever Loop' on 2025-01-01");
+    CalendarRunner.main(new String[] {"--mode", "headless", cmdFile.getAbsolutePath()});
+
+    assertFalse(outContent.toString().contains("Event(s) created successfully."));
+
+    String errorOutput = errContent.toString();
+    assertTrue(errorOutput.contains("No calendar is active."));
+    assertTrue(errorOutput.contains("Error: Command file "
+        + "ended without an 'exit' command."));
+  }
 }

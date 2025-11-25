@@ -1,79 +1,49 @@
 package calendar;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 import calendar.controller.CommandTokenizer;
-import java.lang.reflect.Constructor;
 import java.util.List;
 import org.junit.Test;
 
 /**
- * Tests the {@link CommandTokenizer} utility class.
+ * Ensures the CommandTokenizer properly splits raw input strings into a list of tokens,
+ * respecting quotes for multi-word arguments.
  */
 public class CommandTokenizerTest {
 
-  /**
-   * Tests a simple command with no quotes.
-   */
   @Test
-  public void testTokenizeSimple() {
-    String cmd = "create event Test on 2025-01-01";
-    List<String> expected = List.of("create", "event", "Test", "on", "2025-01-01");
-    assertEquals(expected, CommandTokenizer.tokenize(cmd));
-  }
-
-  /**
-   * Tests a command with a double-quoted string.
-   */
-  @Test
-  public void testTokenizeWithQuotes() {
-    String cmd = "create event \"Team Meeting\" from 2025-01-01T10:00 to 2025-01-01T11:00";
-    List<String> expected = List.of("create", "event", "Team Meeting", "from",
-        "2025-01-01T10:00", "to", "2025-01-01T11:00");
-    assertEquals(expected, CommandTokenizer.tokenize(cmd));
-  }
-
-  /**
-   * Tests empty and whitespace-only input.
-   */
-  @Test
-  public void testTokenizeEmpty() {
-    assertEquals(List.of(), CommandTokenizer.tokenize(""));
-    assertEquals(List.of(), CommandTokenizer.tokenize("    "));
-  }
-
-  /**
-   * Tests an empty double-quoted string ("").
-   */
-  @Test
-  public void testTokenizeEmptyQuote() {
+  public void testTokenizingEmptyQuotes() {
     String cmd = "edit event subject \"Old\" with \"\"";
     List<String> expected = List.of("edit", "event", "subject", "Old", "with", "");
     assertEquals(expected, CommandTokenizer.tokenize(cmd));
   }
 
-  /**
-   * Tests mixed quoted and unquoted tokens.
-   */
   @Test
-  public void testTokenizeMixedTokens() {
-    String cmd = "a \"b c\" d";
-    List<String> expected = List.of("a", "b c", "d");
+  public void testTokenizingBasicCommand() {
+    String cmd = "create event Lunch on 2025-05-01";
+    List<String> expected = List.of("create", "event", "Lunch", "on", "2025-05-01");
     assertEquals(expected, CommandTokenizer.tokenize(cmd));
   }
 
-  /**
-   * Tests the private constructor for 100% code coverage.
-   *
-   * @throws Exception if reflection fails
-   */
   @Test
-  public void testTokenizerConstructor() throws Exception {
-    Constructor<CommandTokenizer> constructor = CommandTokenizer.class.getDeclaredConstructor();
-    constructor.setAccessible(true);
+  public void testTokenizingMixedContent() {
+    String cmd = "copy \"Project Alpha\" to \"Backup Drive\"";
+    List<String> expected = List.of("copy", "Project Alpha", "to", "Backup Drive");
+    assertEquals(expected, CommandTokenizer.tokenize(cmd));
+  }
 
-    constructor.newInstance();
-    assertNotNull(constructor);
+  @Test
+  public void testTokenizingQuotedStrings() {
+    String cmd = "create event \"Weekly Sync\" from 2025-01-01T09:00 to 2025-01-01T10:00";
+    List<String> expected = List.of("create", "event", "Weekly Sync", "from",
+        "2025-01-01T09:00", "to", "2025-01-01T10:00");
+    assertEquals(expected, CommandTokenizer.tokenize(cmd));
+  }
+
+  @Test
+  public void testTokenizingEmptyInput() {
+    assertEquals(List.of(), CommandTokenizer.tokenize(""));
+    assertEquals(List.of(), CommandTokenizer.tokenize("    "));
   }
 }

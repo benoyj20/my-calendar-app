@@ -11,9 +11,8 @@ import java.util.UUID;
 import org.junit.Test;
 
 /**
- * Verifies the validation and construction logic of the Event.Builder.
- * This ensures that events cannot be created in an invalid state,
- * such as missing a subject or having an end time before the start time.
+ * Verifies that the Event.Builder class correctly validates input and constructs Event objects,
+ * preventing invalid states like missing subjects or inverted start/end times.
  */
 public class EventBuilderTest {
 
@@ -21,81 +20,23 @@ public class EventBuilderTest {
   private final LocalDateTime end = LocalDateTime.of(2025, 11, 1, 11, 0);
 
   @Test
-  public void testBuildSuccess() throws ValidationException {
+  public void testRejectsInvertedTimeRange() {
+    try {
+      Event.builder()
+          .setSubject("Time Machine Error")
+          .setStart(end)
+          .setEnd(start)
+          .build();
+      fail("Expected ValidationException for end before start.");
+    } catch (ValidationException e) {
+      assertEquals("Event end time cannot be before start time.", e.getMessage());
+    }
+  }
+
+  @Test
+  public void testDefaultValuesForOptionalFields() throws ValidationException {
     Event event = Event.builder()
-        .setSubject("Test Event")
-        .setStart(start)
-        .setEnd(end)
-        .build();
-    assertEquals("Test Event", event.getSubject());
-    assertEquals(start, event.getStart());
-    assertEquals(end, event.getEnd());
-  }
-
-  @Test
-  public void testBuildFailNoSubject() {
-    try {
-      Event.builder().setStart(start).setEnd(end).build();
-      fail("Expected ValidationException for missing subject.");
-    } catch (ValidationException e) {
-      assertEquals("Event must have a subject.", e.getMessage());
-    }
-
-    try {
-      Event.builder().setSubject("  ").setStart(start).setEnd(end).build();
-      fail("Expected ValidationException for blank subject.");
-    } catch (ValidationException e) {
-      assertEquals("Event must have a subject.", e.getMessage());
-    }
-  }
-
-  @Test
-  public void testBuildFailNoStartOrEnd() {
-    try {
-      Event.builder().setSubject("Test").setEnd(end).build();
-      fail("Expected ValidationException for missing start.");
-    } catch (ValidationException e) {
-      assertEquals("Event must have a start date/time.", e.getMessage());
-    }
-
-    try {
-      Event.builder().setSubject("Test").setStart(start).build();
-      fail("Expected ValidationException for missing end.");
-    } catch (ValidationException e) {
-      assertEquals("Event must have an end date/time.", e.getMessage());
-    }
-  }
-
-  /**
-   * Checks the format of the event's toString method for completeness.
-   *
-   * @throws ValidationException if build fails
-   */
-  @Test
-  public void testToString() throws ValidationException {
-    UUID seriesId = UUID.randomUUID();
-    Event event = Event.builder()
-        .setSubject("My Event")
-        .setStart(start)
-        .setEnd(end)
-        .setSeriesId(seriesId)
-        .build();
-
-    String expected = "Event{subject='My Event', start=2025-11-01T10:00, "
-        + "end=2025-11-01T11:00, seriesId=" + seriesId + "}";
-    assertEquals(expected, event.toString());
-  }
-
-  /**
-   * Ensures that null values for optional fields, like description
-   * or location, are correctly defaulted to empty strings.
-   *
-   * @throws ValidationException if build fails
-   */
-  @Test
-  public void testBuildWithNulls() throws ValidationException {
-    Event event = Event.builder()
-        .setSubject("Test")
+        .setSubject("Bare Minimum Event")
         .setStart(start)
         .setEnd(end)
         .setDescription(null)
@@ -107,37 +48,96 @@ public class EventBuilderTest {
   }
 
   @Test
-  public void testBuildFailEndBeforeStart() {
+  public void testCanBuildValidEvent() throws ValidationException {
+    Event event = Event.builder()
+        .setSubject("Doctor Appointment")
+        .setStart(start)
+        .setEnd(end)
+        .build();
+    assertEquals("Doctor Appointment", event.getSubject());
+    assertEquals(start, event.getStart());
+    assertEquals(end, event.getEnd());
+  }
+
+  @Test
+  public void testRejectsMultiDaySeriesEvent() {
     try {
       Event.builder()
-          .setSubject("Test")
-          .setStart(end)
-          .setEnd(start)
+          .setSubject("Week-long Workshop")
+          .setStart(start)
+          .setEnd(end.plusDays(1))
+          .setSeriesId(UUID.randomUUID())
           .build();
-      fail("Expected ValidationException for end before start.");
+      fail("Expected ValidationException for multi-day series event.");
     } catch (ValidationException e) {
-      assertEquals("Event end time cannot be before start time.", e.getMessage());
+      assertEquals("Events in a series must start and end on the same day.", e.getMessage());
     }
   }
 
   @Test
-  public void testEqualsAndHashCodeContract() throws ValidationException {
-    Event event1 = Event.builder()
-        .setSubject("Meeting")
+  public void testRejectsMissingStartOrEnd() {
+    try {
+      Event.builder().setSubject("Startless Event").setEnd(end).build();
+      fail("Expected ValidationException for missing start.");
+    } catch (ValidationException e) {
+      assertEquals("Event must have a start date/time.", e.getMessage());
+    }
+
+    try {
+      Event.builder().setSubject("Endless Event").setStart(start).build();
+      fail("Expected ValidationException for missing end.");
+    } catch (ValidationException e) {
+      assertEquals("Event must have an end date/time.", e.getMessage());
+    }
+  }
+
+  @Test
+  public void testToStringFormat() throws ValidationException {
+    UUID seriesId = UUID.randomUUID();
+    Event event = Event.builder()
+        .setSubject("Debug Me")
         .setStart(start)
         .setEnd(end)
-        .setLocation("Conf Room A")
+        .setSeriesId(seriesId)
+        .build();
+
+    String expected = "Event{subject='Debug Me', start=2025-11-01T10:00, "
+        + "end=2025-11-01T11:00, seriesId=" + seriesId + "}";
+    assertEquals(expected, event.toString());
+  }
+
+  @Test
+  public void testAllowsMultiDayEventWithoutSeriesId() throws ValidationException {
+    Event event = Event.builder()
+        .setSubject("Weekend Retreat")
+        .setStart(start)
+        .setEnd(end.plusDays(1))
+        .setSeriesId(null)
+        .build();
+
+    assertEquals("Weekend Retreat", event.getSubject());
+    assertEquals(start, event.getStart());
+    assertEquals(end.plusDays(1), event.getEnd());
+  }
+
+  @Test
+  public void testEqualityAndHashCodeConsistency() throws ValidationException {
+    Event event1 = Event.builder()
+        .setSubject("Team Lunch")
+        .setStart(start)
+        .setEnd(end)
+        .setLocation("Pizza Place")
         .build();
 
     Event event2 = Event.builder()
-        .setSubject("Meeting")
+        .setSubject("Team Lunch")
         .setStart(start)
         .setEnd(end)
-        .setLocation("Conf Room B")
+        .setLocation("Burger Joint")
         .build();
 
     Event event3 = Event.builder()
-        .setSubject("Different Meeting")
+        .setSubject("Client Dinner")
         .setStart(start)
         .setEnd(end)
         .build();
@@ -152,32 +152,19 @@ public class EventBuilderTest {
   }
 
   @Test
-  public void testBuildFailSeriesEventSpansMultipleDays() {
+  public void testRejectsMissingSubject() {
     try {
-      Event.builder()
-          .setSubject("Multi-day Series Event")
-          .setStart(start)
-          .setEnd(end.plusDays(1))
-          .setSeriesId(UUID.randomUUID())
-          .build();
-      fail("Expected ValidationException for multi-day series event.");
+      Event.builder().setStart(start).setEnd(end).build();
+      fail("Expected ValidationException for missing subject.");
     } catch (ValidationException e) {
-      assertEquals("Events in a series must start and end on the same day.", e.getMessage());
+      assertEquals("Event must have a subject.", e.getMessage());
+    }
+
+    try {
+      Event.builder().setSubject("  ").setStart(start).setEnd(end).build();
+      fail("Expected ValidationException for blank subject.");
+    } catch (ValidationException e) {
+      assertEquals("Event must have a subject.", e.getMessage());
     }
   }
-
-  @Test
-  public void testBuildSuccessMultiDayEventNoSeriesId() throws ValidationException {
-    Event event = Event.builder()
-        .setSubject("Multi-day Event")
-        .setStart(start)
-        .setEnd(end.plusDays(1))
-        .setSeriesId(null)
-        .build();
-
-    assertEquals("Multi-day Event", event.getSubject());
-    assertEquals(start, event.getStart());
-    assertEquals(end.plusDays(1), event.getEnd());
-  }
-
 }

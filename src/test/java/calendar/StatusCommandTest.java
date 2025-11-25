@@ -15,7 +15,8 @@ import org.junit.Test;
 
 
 /**
- * Tests the {@link StatusCommand} class to verify availability logic.
+ * Checks that the StatusCommand correctly reports a user's availability (Busy/Available)
+ * at a specific point in time, handling date parsing and command syntax errors.
  */
 public class StatusCommandTest {
 
@@ -23,49 +24,33 @@ public class StatusCommandTest {
   private TestView view;
 
   /**
-   * Sets up a model with one event from 10:00 to 11:00 in an active calendar.
-   *
-   * @throws ValidationException if event creation fails
+   * Sets up a calendar with a scheduled "Doctor Appointment" from 10:00 to 11:00
+   * to test busy/available logic.
    */
   @Before
   public void setUp() throws ValidationException {
     model = new ApplicationManagerImpl();
     view = new TestView();
 
-    model.createCalendar("TestCal", ZoneId.of("UTC"));
-    model.setActiveCalendar("TestCal");
+    model.createCalendar("Personal", ZoneId.of("UTC"));
+    model.setActiveCalendar("Personal");
 
     Event event = Event.builder()
-        .setSubject("Meeting")
+        .setSubject("Doctor Appointment")
         .setStart(LocalDateTime.of(2025, 11, 20, 10, 0))
         .setEnd(LocalDateTime.of(2025, 11, 20, 11, 0))
         .build();
     model.getActiveCalendar().addEvent(event);
   }
 
-  /**
-   * Tests that status is "Available" before and exactly at the end time.
-   *
-   * @throws Exception if execute fails
-   */
-  @Test
-  public void testStatusAvailable() throws Exception {
-    List<String> tokens = List.of("show", "status", "on", "2025-11-20T09:59");
+  @Test(expected = ValidationException.class)
+  public void testRejectsInvalidDateFormat() throws Exception {
+    List<String> tokens = List.of("show", "status", "on", "2025-99-99T10:00");
     new StatusCommand(tokens).execute(model, view);
-    assertEquals("Available", view.getLastMessage());
-
-    tokens = List.of("show", "status", "on", "2025-11-20T11:00");
-    new StatusCommand(tokens).execute(model, view);
-    assertEquals("Available", view.getLastMessage());
   }
 
-  /**
-   * Tests that status is "Busy" at start time and during the event.
-   *
-   * @throws Exception if execute fails
-   */
   @Test
-  public void testStatusBusy() throws Exception {
+  public void testReportsBusyDuringEvent() throws Exception {
     List<String> tokens = List.of("show", "status", "on", "2025-11-20T10:00");
     new StatusCommand(tokens).execute(model, view);
     assertEquals("Busy", view.getLastMessage());
@@ -75,36 +60,26 @@ public class StatusCommandTest {
     assertEquals("Busy", view.getLastMessage());
   }
 
-  /**
-   * Tests syntax error for too few tokens.
-   *
-   * @throws Exception if execute fails
-   */
   @Test(expected = ValidationException.class)
-  public void testStatusSyntaxErrorShort() throws Exception {
+  public void testRejectsShortCommand() throws Exception {
     List<String> tokens = List.of("show", "status", "on");
     new StatusCommand(tokens).execute(model, view);
   }
 
-  /**
-   * Tests syntax error for wrong keyword.
-   *
-   * @throws Exception if execute fails
-   */
-  @Test(expected = ValidationException.class)
-  public void testStatusSyntaxErrorBadWord() throws Exception {
-    List<String> tokens = List.of("show", "status", "at", "2025-11-20T10:00");
+  @Test
+  public void testReportsAvailableOutsideEvent() throws Exception {
+    List<String> tokens = List.of("show", "status", "on", "2025-11-20T09:59");
     new StatusCommand(tokens).execute(model, view);
+    assertEquals("Available", view.getLastMessage());
+
+    tokens = List.of("show", "status", "on", "2025-11-20T11:00");
+    new StatusCommand(tokens).execute(model, view);
+    assertEquals("Available", view.getLastMessage());
   }
 
-  /**
-   * Tests validation error for unparseable date-time.
-   *
-   * @throws Exception if execute fails
-   */
   @Test(expected = ValidationException.class)
-  public void testStatusSyntaxErrorBadDate() throws Exception {
-    List<String> tokens = List.of("show", "status", "on", "2025-99-99T10:00");
+  public void testRejectsWrongKeyword() throws Exception {
+    List<String> tokens = List.of("show", "status", "at", "2025-11-20T10:00");
     new StatusCommand(tokens).execute(model, view);
   }
 }

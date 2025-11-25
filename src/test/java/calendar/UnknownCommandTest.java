@@ -11,22 +11,20 @@ import calendar.model.ValidationException;
 import org.junit.Test;
 
 /**
- * Tests the {@link UnknownCommand} class.
+ * Verifies that the UnknownCommand class correctly handles unrecognized input by halting execution
+ * and reporting the specific invalid command string.
  */
 public class UnknownCommandTest {
 
-  /**
-   * Tests that executing an UnknownCommand always throws a ValidationException.
-   */
   @Test
-  public void testExecuteAlwaysThrows() {
-    Command cmd = new UnknownCommand("some bad command");
+  public void testReportsErrorForUnrecognizedInput() {
+    Command cmd = new UnknownCommand("make coffee");
     try {
       cmd.execute(new ApplicationManagerImpl(), new TestView());
       fail("UnknownCommand should always throw ValidationException");
     } catch (Exception e) {
       assertTrue(e instanceof ValidationException);
-      assertEquals("Invalid or unexpected command: some bad command", e.getMessage());
+      assertEquals("Invalid or unexpected command: make coffee", e.getMessage());
     }
   }
 }

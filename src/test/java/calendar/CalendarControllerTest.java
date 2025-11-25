@@ -18,8 +18,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Integration tests for the {@link CalendarController} class.
- * Uses a real model, parser, and a {@link TestView} stub.
+ * Integration tests for the CalendarController to ensure it properly does the model
+ * and view based on user commands.
  */
 public class CalendarControllerTest {
 
@@ -29,7 +29,7 @@ public class CalendarControllerTest {
   private CalendarController controller;
 
   /**
-   * Sets up the MVC components before each test.
+   * Initializes the model, view, and parser before each test..
    */
   @Before
   public void setUp() {
@@ -39,69 +39,16 @@ public class CalendarControllerTest {
     controller = new CalendarController(model, view, parser);
   }
 
-  /**
-   * Creates a mock command supplier from a list of strings.
-   *
-   * @param commands The list of commands to supply.
-   * @return A {@link Supplier} that provides one command at a time.
-   */
   private Supplier<String> createCommandSupplier(List<String> commands) {
     Queue<String> commandQueue = new LinkedList<>(commands);
     return commandQueue::poll;
   }
 
-  /**
-   * Tests a run loop with valid commands.
-   * This test also covers calendar creation and usage.
-   */
   @Test
-  public void testControllerRunLoop() throws Exception {
+  public void testHandlesEmptyLinesGracefully() throws Exception {
     List<String> commands = List.of(
-        "create calendar --name \"TestCal\" --timezone \"America/New_York\"",
-        "use calendar --name \"TestCal\"",
-        "create event \"Final Exam\" on 2025-12-15",
-        "show status on 2025-12-15T10:00",
-        "exit"
-    );
-    Supplier<String> supplier = createCommandSupplier(commands);
-    controller.run(supplier);
-
-    List<Event> events = model.getActiveCalendar().findEvents(e -> true);
-    assertEquals(1, events.size());
-    assertEquals("Final Exam", events.get(0).getSubject());
-
-    assertEquals("Exiting calendar...", view.getLastMessage());
-    assertTrue(controller.isExitCommandReceived());
-  }
-
-  /**
-   * Tests that the controller catches and reports exceptions from invalid commands.
-   */
-  @Test
-  public void testControllerHandlesException() {
-    List<String> commands = List.of(
-        "create calendar --name \"TestCal\" --timezone \"America/New_York\"",
-        "use calendar --name \"TestCal\"",
-        "create event \"Bad Command\"",
-        "exit"
-    );
-    Supplier<String> supplier = createCommandSupplier(commands);
-    controller.run(supplier);
-
-    assertEquals("Invalid 'create event' command syntax.", view.getLastError());
-
-    assertTrue(controller.isExitCommandReceived());
-    assertEquals("Exiting calendar...", view.getLastMessage());
-  }
-
-  /**
-   * Tests that the controller correctly skips empty and whitespace-only lines.
-   */
-  @Test
-  public void testControllerRunLoopHandlesEmptyLines() throws Exception {
-    List<String> commands = List.of(
-        "create calendar --name \"TestCal\" --timezone \"America/New_York\"",
-        "use calendar --name \"TestCal\"",
+        "create calendar --name \"School Schedule\" --timezone \"Europe/London\"",
+        "use calendar --name \"School Schedule\"",
         "",
         "   ",
         "exit"
@@ -115,16 +62,49 @@ public class CalendarControllerTest {
     assertEquals(0, model.getActiveCalendar().findEvents(e -> true).size());
   }
 
-  /**
-   * Tests that the controller loop correctly terminates when the supplier
-   * returns null.
-   */
   @Test
-  public void testControllerRunLoopHandlesNullInput() throws Exception {
+  public void testInvalidCommandDoesNotCrashApp() {
     List<String> commands = List.of(
-        "create calendar --name \"TestCal\" --timezone \"America/New_York\"",
-        "use calendar --name \"TestCal\"",
-        "create event \"First\" on 2025-01-01"
+        "create calendar --name \"Hobby Calendar\" --timezone \"UTC\"",
+        "use calendar --name \"Hobby Calendar\"",
+        "create event \"Garbage Input\"",
+        "exit"
+    );
+    Supplier<String> supplier = createCommandSupplier(commands);
+    controller.run(supplier);
+
+    assertEquals("Invalid 'create event' command syntax.", view.getLastError());
+
+    assertTrue(controller.isExitCommandReceived());
+    assertEquals("Exiting calendar...", view.getLastMessage());
+  }
+
+  @Test
+  public void testCompleteUserSessionWithEvents() throws Exception {
+    List<String> commands = List.of(
+        "create calendar --name \"Family Trip\" --timezone \"America/Los_Angeles\"",
+        "use calendar --name \"Family Trip\"",
+        "create event \"Flight to Hawaii\" on 2025-07-15",
+        "show status on 2025-07-15T10:00",
+        "exit"
+    );
+    Supplier<String> supplier = createCommandSupplier(commands);
+    controller.run(supplier);
+
+    List<Event> events = model.getActiveCalendar().findEvents(e -> true);
+    assertEquals(1, events.size());
+    assertEquals("Flight to Hawaii", events.get(0).getSubject());
+
+    assertEquals("Exiting calendar...", view.getLastMessage());
+    assertTrue(controller.isExitCommandReceived());
+  }
+
+  @Test
+  public void testControllerEndsWhenInputEnds() throws Exception {
+    List<String> commands = List.of(
+        "create calendar --name \"Gym Routine\" --timezone \"America/New_York\"",
+        "use calendar --name \"Gym Routine\"",
+        "create event \"Morning Yoga\" on 2025-06-01"
     );
     Supplier<String> supplier = createCommandSupplier(commands);
     controller.run(supplier);

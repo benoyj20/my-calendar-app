@@ -15,8 +15,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Tests the {@link ConsoleView} class by capturing and verifying
- * System.out and System.err output.
+ * Checks that the ConsoleView correctly writes messages, errors, and event details
+ * to the standard output and error streams.
  */
 public class ConsoleViewTest {
 
@@ -26,10 +26,11 @@ public class ConsoleViewTest {
   private final PrintStream originalErr = System.err;
 
   private ConsoleView view;
-  private Event event1;
+  private Event sampleEvent;
 
   /**
-   * Redirects System.out and System.err to an in-memory stream before each test.
+   * Redirects System.out and System.err to capture output for verification,
+   * and initializes a sample event for testing.
    *
    * @throws ValidationException if event creation fails
    */
@@ -39,16 +40,16 @@ public class ConsoleViewTest {
     System.setErr(new PrintStream(errContent));
     view = new ConsoleView();
 
-    event1 = Event.builder()
-        .setSubject("Test Event")
+    sampleEvent = Event.builder()
+        .setSubject("Weekly Sync")
         .setStart(LocalDateTime.of(2025, 11, 20, 14, 30))
         .setEnd(LocalDateTime.of(2025, 11, 20, 15, 0))
-        .setLocation("Here")
+        .setLocation("Conference Room A")
         .build();
   }
 
   /**
-   * Restores the original System.out and System.err streams after each test.
+   * Restores streams.
    */
   @After
   public void restoreStreams() {
@@ -56,72 +57,52 @@ public class ConsoleViewTest {
     System.setErr(originalErr);
   }
 
-  /**
-   * Tests the showMessage method.
-   */
   @Test
-  public void testShowMessage() {
-    view.showMessage("Hello World");
-    assertEquals("Hello World" + System.lineSeparator(), outContent.toString());
+  public void testDisplayingErrorMessage() {
+    view.showError("Something went wrong");
+    assertEquals("ERROR: Something went wrong" + System.lineSeparator(), errContent.toString());
   }
 
-  /**
-   * Tests the showError method.
-   */
   @Test
-  public void testShowError() {
-    view.showError("Oops");
-    assertEquals("ERROR: Oops" + System.lineSeparator(), errContent.toString());
+  public void testPrintingEventsOnSpecificDate() {
+    view.printEventsOnDate(List.of(sampleEvent));
+    String output = outContent.toString();
+    assertTrue(output.contains("* Weekly Sync from 02:30 PM to 03:00 PM at Conference Room A"));
   }
 
-  /**
-   * Tests the showPrompt method.
-   */
   @Test
-  public void testShowPrompt() {
+  public void testPrintingEmptyDateRangeList() {
+    view.printEventsInRange(List.of());
+    String output = outContent.toString();
+    assertTrue(output.contains("No events found in this range."));
+  }
+
+  @Test
+  public void testDisplayingUserPrompt() {
     view.showPrompt();
     assertEquals("> ", outContent.toString());
   }
 
-  /**
-   * Tests printEventsOnDate with a non-empty list.
-   */
   @Test
-  public void testPrintEventsOnDate() {
-    view.printEventsOnDate(List.of(event1));
-    String output = outContent.toString();
-    assertTrue(output.contains("* Test Event from 02:30 PM to 03:00 PM at Here"));
-  }
-
-  /**
-   * Tests printEventsOnDate with an empty list.
-   */
-  @Test
-  public void testPrintEventsOnDateEmpty() {
-    view.printEventsOnDate(List.of());
-    String output = outContent.toString();
-    assertTrue(output.contains("No events scheduled."));
-  }
-
-  /**
-   * Tests printEventsInRange with a non-empty list.
-   */
-  @Test
-  public void testPrintEventsInRange() {
-    view.printEventsInRange(List.of(event1));
+  public void testPrintingEventsWithinRange() {
+    view.printEventsInRange(List.of(sampleEvent));
     String output = outContent.toString();
     assertTrue(output.contains(
-        "* Test Event starting on 2025-11-20 at 02:30 PM, ending on 2025-11-20 at 03:00 PM at Here"
+        "* Weekly Sync starting on 2025-11-20 at 02:30 PM, ending on 2025-11-20 at 03:00 PM "
+            + "at Conference Room A"
     ));
   }
 
-  /**
-   * Tests printEventsInRange with an empty list.
-   */
   @Test
-  public void testPrintEventsInRangeEmpty() {
-    view.printEventsInRange(List.of());
+  public void testDisplayingStandardMessage() {
+    view.showMessage("Welcome to Calendar");
+    assertEquals("Welcome to Calendar" + System.lineSeparator(), outContent.toString());
+  }
+
+  @Test
+  public void testPrintingEmptyDateList() {
+    view.printEventsOnDate(List.of());
     String output = outContent.toString();
-    assertTrue(output.contains("No events found in this range."));
+    assertTrue(output.contains("No events scheduled."));
   }
 }

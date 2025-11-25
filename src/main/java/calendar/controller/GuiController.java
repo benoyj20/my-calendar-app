@@ -44,7 +44,7 @@ public class GuiController implements ControllerFeatures {
   private Map<String, BiFunction<Event.EventBuilder, String, Event.EventBuilder>> modifierMap;
 
   /**
-   * Sets up the controller with the given data model.
+   * Sets up the controller with the given model.
    *
    * @param model The model for the application.
    */
@@ -57,15 +57,14 @@ public class GuiController implements ControllerFeatures {
   }
 
   /**
-   * Convenience constructor so tests (or the GUI launcher) can inject a view
-   * directly and have the controller wire itself up.
+   * Constructor to accept a model and a view.
    *
    * @param model the application model
    * @param view  the GUI view implementation
    */
   public GuiController(ApplicationManager model, GuiView view) {
-    this(model);    // do normal setup
-    setView(view);  // attach the view and refresh it
+    this(model);
+    setView(view);
   }
 
   private void initializeModifiers() {
@@ -102,9 +101,7 @@ public class GuiController implements ControllerFeatures {
   @Override
   public void setView(GuiView view) {
     this.view = view;
-    // build the initial GUI state from the model
     refreshView();
-    // finally, show the window (needed for the FakeGuiView test)
     this.view.setVisible(true);
   }
 

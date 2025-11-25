@@ -59,8 +59,8 @@ public class SearchAndEditDialog extends JDialog {
   /**
    * Initializes the search and edit dialog window with all form components.
    *
-   * @param parent   The parent frame to center this dialog over.
-   * @param features The controller interface for performing the bulk update.
+   * @param parent   The parent frame.
+   * @param features The controller interface for performing the update.
    */
   public SearchAndEditDialog(JFrame parent, ControllerFeatures features) {
     super(parent, "Search and Edit", true);

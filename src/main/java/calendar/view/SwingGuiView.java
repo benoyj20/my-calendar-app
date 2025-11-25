@@ -278,7 +278,7 @@ public class SwingGuiView extends JFrame implements GuiView {
   }
 
   /**
-   * Helper method to create a consistently styled label for an event.
+   * Helper method to create a label for an event.
    *
    * @param text The text to display on the event label.
    * @return The JLabel to be added to the UI.

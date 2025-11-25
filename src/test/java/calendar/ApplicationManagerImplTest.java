@@ -17,58 +17,102 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Tests the core logic of the ApplicationManagerImpl class, which
- * is responsible for managing the collection of all calendars.
+ * Ensures the ApplicationManager correctly handles calendar creation, deletion,
+ * and updates.
  */
 public class ApplicationManagerImplTest {
 
   private ApplicationManager model;
-  private final ZoneId zonePst = ZoneId.of("America/Los_Angeles");
-  private final ZoneId zoneUtc = ZoneId.of("UTC");
+  private final ZoneId zoneNewYork = ZoneId.of("America/New_York");
+  private final ZoneId zoneLondon = ZoneId.of("Europe/London");
 
   /**
-   * Sets up the model and pre-populates it with two calendars,
-   * "Work" and "Home", for testing.
+   * Resets the application state before each test, creating a clean environment
+   * with two default calendars: "Family Schedule" and "Project Alpha".
    */
   @Before
   public void setUp() throws ValidationException {
     model = new ApplicationManagerImpl();
-    model.createCalendar("Work", zoneUtc);
-    model.createCalendar("Home", zonePst);
+    model.createCalendar("Project Alpha", zoneLondon);
+    model.createCalendar("Family Schedule", zoneNewYork);
   }
 
-  /**
-   * Makes sure we can add a new, valid calendar to the manager.
-   */
   @Test
-  public void testCreateCalendarSuccess() throws Exception {
-    model.createCalendar("Personal", ZoneId.of("Europe/Paris"));
-    Calendar cal = model.getCalendar("Personal");
-    assertNotNull(cal);
-    assertEquals("Personal", cal.getName());
-    assertEquals(ZoneId.of("Europe/Paris"), cal.getZoneId());
-  }
-
-  /**
-   * Checks that trying to add a calendar with a duplicate name fails.
-   */
-  @Test
-  public void testCreateCalendarNameConflict() throws Exception {
+  public void testShouldFailWhenCreatingCalendarWithDuplicateName() throws Exception {
     try {
-      model.createCalendar("Work", zonePst);
+      model.createCalendar("Project Alpha", zoneNewYork);
       fail("Expected ValidationException for duplicate calendar name.");
     } catch (ValidationException e) {
-      assertEquals("A calendar with the name 'Work' already exists.", e.getMessage());
+      assertEquals("A calendar with the name 'Project Alpha' already exists.", e.getMessage());
     }
   }
 
-  /**
-   * Verifies that the underlying Objects.requireNonNull checks for null inputs.
-   */
   @Test
-  public void testCreateCalendarNullInputs() {
+  public void testShouldFailToUpdateMissingCalendarTimezone() throws Exception {
     try {
-      model.createCalendar(null, zoneUtc);
+      model.editCalendarTimezone("Ghost Calendar", zoneLondon);
+      fail("Expected ValidationException for missing calendar.");
+    } catch (ValidationException e) {
+      assertEquals("Calendar 'Ghost Calendar' not found.", e.getMessage());
+    }
+  }
+
+  @Test
+  public void testShouldCreateNewCalendarSuccessfully() throws Exception {
+    model.createCalendar("Gym Routine", ZoneId.of("Asia/Tokyo"));
+    Calendar cal = model.getCalendar("Gym Routine");
+    assertNotNull(cal);
+    assertEquals("Gym Routine", cal.getName());
+    assertEquals(ZoneId.of("Asia/Tokyo"), cal.getZoneId());
+  }
+
+  @Test
+  public void testShouldRenameCalendarSuccessfully() throws Exception {
+    model.editCalendarName("Project Alpha", "Project Beta");
+    assertNotNull(model.getCalendar("Project Beta"));
+
+    try {
+      model.getCalendar("Project Alpha");
+      fail("Old calendar name 'Project Alpha' should no longer exist.");
+    } catch (ValidationException e) {
+      assertEquals("Calendar 'Project Alpha' not found.", e.getMessage());
+    }
+  }
+
+  @Test
+  public void testShouldUpdateTimezoneSuccessfully() throws Exception {
+    model.editCalendarTimezone("Family Schedule", ZoneId.of("Asia/Tokyo"));
+    assertEquals(ZoneId.of("Asia/Tokyo"), model.getCalendar("Family Schedule").getZoneId());
+  }
+
+  @Test
+  public void testShouldFailToActivateMissingCalendar() throws Exception {
+    try {
+      model.setActiveCalendar("Secret Plan");
+      fail("Expected ValidationException for missing calendar.");
+    } catch (ValidationException e) {
+      assertEquals("Calendar 'Secret Plan' not found.", e.getMessage());
+    }
+  }
+
+  @Test
+  public void testShouldSwitchActiveCalendarWhenCurrentIsDeleted() throws Exception {
+    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
+
+    mgr.createCalendar("Primary", ZoneId.systemDefault());
+    mgr.createCalendar("Backup", ZoneId.systemDefault());
+
+    assertEquals("Primary", mgr.getActiveCalendar().getName());
+
+    mgr.deleteCalendar("Primary");
+
+    assertEquals("Backup", mgr.getActiveCalendar().getName());
+  }
+
+  @Test
+  public void testShouldRejectNullParametersForCreation() {
+    try {
+      model.createCalendar(null, zoneLondon);
       fail("Expected NullPointerException for null name.");
     } catch (Exception e) {
       assertTrue(e instanceof NullPointerException);
@@ -82,116 +126,84 @@ public class ApplicationManagerImplTest {
     }
   }
 
-  /**
-   * Tests that a calendar's name can be changed successfully.
-   */
   @Test
-  public void testEditCalendarNameSuccess() throws Exception {
-    model.editCalendarName("Work", "Work-Office");
-    assertNotNull(model.getCalendar("Work-Office"));
+  public void testShouldUpdateEventTimesWhenTimezoneChanges() throws Exception {
+    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
+    mgr.createCalendar("Trip", ZoneId.of("America/New_York"));
+    mgr.setActiveCalendar("Trip");
+    Calendar cal = mgr.getActiveCalendar();
+
+    LocalDateTime start = LocalDateTime.of(2025, 5, 1, 10, 0);
+    LocalDateTime end = start.plusHours(2);
+    Event evt = Event.builder()
+        .setSubject("Flight to LHR")
+        .setStart(start)
+        .setEnd(end)
+        .build();
+    cal.addEvent(evt);
+
+    mgr.editCalendarTimezone("Trip", ZoneId.of("Europe/London"));
+
+    Calendar after = mgr.getActiveCalendar();
+    assertEquals(ZoneId.of("Europe/London"), after.getZoneId());
+    Event afterEvt = after.findEvents(e -> true).get(0);
+
+    assertNotEquals(start, afterEvt.getStart());
+    assertNotEquals(end, afterEvt.getEnd());
+  }
+
+  @Test
+  public void testShouldFailToDeleteMissingCalendar() {
+    ApplicationManagerImpl model = new ApplicationManagerImpl();
+
+    String missing = "Old Calendar";
 
     try {
-      model.getCalendar("Work");
-      fail("Old calendar name 'Work' should no longer exist.");
+      model.deleteCalendar(missing);
+      fail("Expected ValidationException for missing calendar");
     } catch (ValidationException e) {
-      assertEquals("Calendar 'Work' not found.", e.getMessage());
+      assertTrue(e.getMessage().contains("Calendar 'Old Calendar' not found."));
     }
   }
 
-  /**
-   * Makes sure renaming a calendar to a name that already
-   * exists is not allowed.
-   */
   @Test
-  public void testEditCalendarNameConflict() throws Exception {
+  public void testShouldUpdateActiveReferenceOnRename() throws Exception {
+    model.setActiveCalendar("Project Alpha");
+    assertEquals("Project Alpha", model.getActiveCalendar().getName());
+
+    model.editCalendarName("Project Alpha", "Project Alpha V2");
+
+    assertEquals("Project Alpha V2", model.getActiveCalendar().getName());
+  }
+
+  @Test
+  public void testShouldClearActiveWhenLastCalendarIsDeleted() throws Exception {
+    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
+
+    mgr.createCalendar("OnlyOne", ZoneId.systemDefault());
+    assertEquals("OnlyOne", mgr.getActiveCalendar().getName());
+
+    mgr.deleteCalendar("OnlyOne");
+
     try {
-      model.editCalendarName("Work", "Home");
+      mgr.getActiveCalendar();
+      fail("Should throw ValidationException when no active calendar exists");
+    } catch (ValidationException expected) {
+    }
+  }
+
+  @Test
+  public void testShouldFailToRenameToExistingName() throws Exception {
+    try {
+      model.editCalendarName("Project Alpha", "Family Schedule");
       fail("Expected ValidationException for duplicate name.");
     } catch (ValidationException e) {
-      assertEquals("A calendar with the name 'Home' already exists.", e.getMessage());
+      assertEquals("A calendar with the name 'Family Schedule' already exists.", e.getMessage());
     }
   }
 
-  /**
-   * Checks that attempting to edit a calendar that doesn't
-   * exist throws an error.
-   */
   @Test
-  public void testEditCalendarNameNotFound() throws Exception {
-    try {
-      model.editCalendarName("Missing", "NewName");
-      fail("Expected ValidationException for missing calendar.");
-    } catch (ValidationException e) {
-      assertEquals("Calendar 'Missing' not found.", e.getMessage());
-    }
-  }
-
-  /**
-   * Tests that a calendar's timezone can be changed successfully.
-   */
-  @Test
-  public void testEditCalendarTimezoneSuccess() throws Exception {
-    model.editCalendarTimezone("Home", ZoneId.of("Europe/Paris"));
-    assertEquals(ZoneId.of("Europe/Paris"), model.getCalendar("Home").getZoneId());
-  }
-
-  /**
-   * Checks that attempting to edit the timezone of a calendar
-   * that doesn't exist throws an error.
-   */
-  @Test
-  public void testEditCalendarTimezoneNotFound() throws Exception {
-    try {
-      model.editCalendarTimezone("Missing", zoneUtc);
-      fail("Expected ValidationException for missing calendar.");
-    } catch (ValidationException e) {
-      assertEquals("Calendar 'Missing' not found.", e.getMessage());
-    }
-  }
-
-  /**
-   * Verifies that we can set a calendar as active and then
-   * retrieve it successfully.
-   */
-  @Test
-  public void testSetAndGetActiveCalendar() throws Exception {
-    model.setActiveCalendar("Home");
-    Calendar activeCal = model.getActiveCalendar();
-    assertEquals("Home", activeCal.getName());
-    assertEquals(zonePst, activeCal.getZoneId());
-  }
-
-  /**
-   * Checks that setting a non-existent calendar as active
-   * throws an error.
-   */
-  @Test
-  public void testSetActiveCalendarNotFound() throws Exception {
-    try {
-      model.setActiveCalendar("Missing");
-      fail("Expected ValidationException for missing calendar.");
-    } catch (ValidationException e) {
-      assertEquals("Calendar 'Missing' not found.", e.getMessage());
-    }
-  }
-
-  /**
-   * Verifies the edge case of renaming the currently active calendar.
-   * The manager should update its internal pointer and
-   * getActiveCalendar should return the renamed calendar.
-   */
-  @Test
-  public void testEditNameOfActiveCalendar() throws Exception {
-    model.setActiveCalendar("Work");
-    assertEquals("Work", model.getActiveCalendar().getName());
-
-    model.editCalendarName("Work", "Work-Renamed");
-
-    assertEquals("Work-Renamed", model.getActiveCalendar().getName());
-  }
-
-  @Test
-  public void testEditCalendarTimezoneSameZoneNoChange() throws Exception {
+  public void testShouldNotChangeEventTimesIfTimezoneIsSame() throws Exception {
     ApplicationManagerImpl mgr = new ApplicationManagerImpl();
     mgr.createCalendar("Home", ZoneId.of("America/New_York"));
     mgr.setActiveCalendar("Home");
@@ -200,7 +212,7 @@ public class ApplicationManagerImplTest {
     LocalDateTime start = LocalDateTime.of(2025, 1, 1, 10, 0);
     LocalDateTime end = start.plusHours(2);
     Event evt = Event.builder()
-        .setSubject("Meeting")
+        .setSubject("Breakfast")
         .setStart(start)
         .setEnd(end)
         .build();
@@ -216,114 +228,48 @@ public class ApplicationManagerImplTest {
   }
 
   @Test
-  public void testEditCalendarTimezoneConvertsEventsWhenZoneChanges() throws Exception {
+  public void testShouldMaintainActiveReferenceIfDifferentCalendarRenamed() throws Exception {
     ApplicationManagerImpl mgr = new ApplicationManagerImpl();
-    mgr.createCalendar("Home", ZoneId.of("America/New_York"));
-    mgr.setActiveCalendar("Home");
-    Calendar cal = mgr.getActiveCalendar();
 
-    LocalDateTime start = LocalDateTime.of(2025, 1, 1, 10, 0);
-    LocalDateTime end = start.plusHours(2);
-    Event evt = Event.builder()
-        .setSubject("Meeting")
-        .setStart(start)
-        .setEnd(end)
-        .build();
-    cal.addEvent(evt);
+    mgr.createCalendar("Current", ZoneId.systemDefault());
+    mgr.createCalendar("Old", ZoneId.systemDefault());
 
-    mgr.editCalendarTimezone("Home", ZoneId.of("Europe/London"));
+    assertEquals("Current", mgr.getActiveCalendar().getName());
 
-    Calendar after = mgr.getActiveCalendar();
-    assertEquals(ZoneId.of("Europe/London"), after.getZoneId());
-    Event afterEvt = after.findEvents(e -> true).get(0);
+    mgr.editCalendarName("Old", "Archived");
 
-    assertNotEquals(start, afterEvt.getStart());
-    assertNotEquals(end, afterEvt.getEnd());
+    assertEquals("Current", mgr.getActiveCalendar().getName());
   }
 
   @Test
-  public void testDeleteCalendarThrowsWhenNotFound() {
-    ApplicationManagerImpl model = new ApplicationManagerImpl();
-
-    String missing = "DoesNotExist";
-
+  public void testShouldFailToRenameMissingCalendar() throws Exception {
     try {
-      model.deleteCalendar(missing);
-      fail("Expected ValidationException for missing calendar");
+      model.editCalendarName("Mystery", "New Name");
+      fail("Expected ValidationException for missing calendar.");
     } catch (ValidationException e) {
-      assertTrue(e.getMessage().contains("Calendar 'DoesNotExist' not found."));
+      assertEquals("Calendar 'Mystery' not found.", e.getMessage());
     }
   }
 
   @Test
-  public void testEditCalendarNameUpdatesActiveCalendarWhenNamesMatch() throws Exception {
+  public void testShouldMaintainActiveReferenceIfDifferentCalendarDeleted() throws Exception {
     ApplicationManagerImpl mgr = new ApplicationManagerImpl();
 
-    mgr.createCalendar("Work", ZoneId.systemDefault());
+    mgr.createCalendar("KeepMe", ZoneId.systemDefault());
+    mgr.createCalendar("DeleteMe", ZoneId.systemDefault());
 
-    assertEquals("Work", mgr.getActiveCalendar().getName());
+    assertEquals("KeepMe", mgr.getActiveCalendar().getName());
 
-    mgr.editCalendarName("Work", "Office");
+    mgr.deleteCalendar("DeleteMe");
 
-    assertEquals("Office", mgr.getActiveCalendar().getName());
+    assertEquals("KeepMe", mgr.getActiveCalendar().getName());
   }
 
   @Test
-  public void testEditCalendarNameNotUpdateWhenNamesMismatch() throws Exception {
-    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
-
-    mgr.createCalendar("Primary", ZoneId.systemDefault());
-    mgr.createCalendar("Secondary", ZoneId.systemDefault());
-
-    assertEquals("Primary", mgr.getActiveCalendar().getName());
-
-    mgr.editCalendarName("Secondary", "Renamed");
-
-    assertEquals("Primary", mgr.getActiveCalendar().getName());
-  }
-
-  @Test
-  public void testDeleteCalendarActiveBecomesNullWhenLastCalendarRemoved() throws Exception {
-    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
-
-    mgr.createCalendar("A", ZoneId.systemDefault());
-    assertEquals("A", mgr.getActiveCalendar().getName());
-
-    mgr.deleteCalendar("A");
-
-    try {
-      mgr.getActiveCalendar();
-      fail("Should throw ValidationException when no active calendar exists");
-    } catch (ValidationException expected) {
-    }
-
-  }
-
-  @Test
-  public void testDeleteCalendarActiveSwitchesToAnotherWhenOthersExist() throws Exception {
-    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
-
-    mgr.createCalendar("A", ZoneId.systemDefault());
-    mgr.createCalendar("B", ZoneId.systemDefault());
-
-    assertEquals("A", mgr.getActiveCalendar().getName());
-
-    mgr.deleteCalendar("A");
-
-    assertEquals("B", mgr.getActiveCalendar().getName());
-  }
-
-  @Test
-  public void testDeleteCalendarNonActiveDoesNotChangeActive() throws Exception {
-    ApplicationManagerImpl mgr = new ApplicationManagerImpl();
-
-    mgr.createCalendar("A", ZoneId.systemDefault());
-    mgr.createCalendar("B", ZoneId.systemDefault());
-
-    assertEquals("A", mgr.getActiveCalendar().getName());
-
-    mgr.deleteCalendar("B");
-
-    assertEquals("A", mgr.getActiveCalendar().getName());
+  public void testShouldAllowSwitchingActiveCalendar() throws Exception {
+    model.setActiveCalendar("Family Schedule");
+    Calendar activeCal = model.getActiveCalendar();
+    assertEquals("Family Schedule", activeCal.getName());
+    assertEquals(zoneNewYork, activeCal.getZoneId());
   }
 }

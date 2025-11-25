@@ -15,9 +15,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Tests the {@link CreateCalendarCommand} class to ensure it
- * correctly parses tokens, creates new calendars, and handles
- * errors like duplicate names or invalid timezones.
+ * Verifies that the CreateCalendarCommand correctly interprets user input to create new calendars,
+ * ensuring valid names and timezones are enforced while rejecting invalid commands.
  */
 public class CreateCalendarCommandTest {
 
@@ -25,7 +24,7 @@ public class CreateCalendarCommandTest {
   private TestView view;
 
   /**
-   * Sets up a fresh model and view before each test.
+   * Resets the model and view before each test.
    */
   @Before
   public void setUp() {
@@ -33,28 +32,47 @@ public class CreateCalendarCommandTest {
     view = new TestView();
   }
 
-  /**
-   * Tests the standard "happy path" for creating a new calendar.
-   * We check that the model is updated and the user gets a success message.
-   */
   @Test
-  public void testCreateCalendarSuccess() throws Exception {
-    List<String> tokens = List.of("create", "calendar", "--name", "Work",
-        "--timezone", "America/New_York");
-    new CreateCalendarCommand(tokens).execute(model, view);
-
-    assertEquals("Calendar 'Work' created successfully.", view.getLastMessage());
-    assertNotNull(model.getCalendar("Work"));
-    assertEquals(ZoneId.of("America/New_York"), model.getCalendar("Work").getZoneId());
+  public void testCommandFailsWithBadTimezoneFormat() throws Exception {
+    List<String> tokens = List.of("create", "calendar", "--name", "Conference",
+        "--timezone", "Moon/Armstrong_Base");
+    try {
+      new CreateCalendarCommand(tokens).execute(model, view);
+      fail("Expected ValidationException for bad timezone string.");
+    } catch (ValidationException e) {
+      assertEquals("Invalid timezone format: Moon/Armstrong_Base", e.getMessage());
+    } catch (DateTimeException e) {
+      fail("Command threw the wrong exception. Expected ValidationException, got " + e);
+    }
   }
 
-  /**
-   * Verifies that the command fails if a calendar with the
-   * same name already exists in the model.
-   */
+  @Test(expected = ValidationException.class)
+  public void testCommandRejectsTypoInKeyword() throws Exception {
+    List<String> tokens = List.of("create", "calendar", "--name", "Errand List",
+        "--zone", "UTC");
+    new CreateCalendarCommand(tokens).execute(model, view);
+  }
+
   @Test
-  public void testCreateCalendarNameConflict() throws Exception {
-    List<String> tokens = List.of("create", "calendar", "--name", "Test",
+  public void testCanCreateNewCalendarSuccessfully() throws Exception {
+    List<String> tokens = List.of("create", "calendar", "--name", "Project Zeta",
+        "--timezone", "America/Chicago");
+    new CreateCalendarCommand(tokens).execute(model, view);
+
+    assertEquals("Calendar 'Project Zeta' created successfully.", view.getLastMessage());
+    assertNotNull(model.getCalendar("Project Zeta"));
+    assertEquals(ZoneId.of("America/Chicago"), model.getCalendar("Project Zeta").getZoneId());
+  }
+
+  @Test(expected = ValidationException.class)
+  public void testCommandRejectsMissingArguments() throws Exception {
+    List<String> tokens = List.of("create", "calendar", "--name", "Incomplete");
+    new CreateCalendarCommand(tokens).execute(model, view);
+  }
+
+  @Test
+  public void testCommandFailsIfCalendarExists() throws Exception {
+    List<String> tokens = List.of("create", "calendar", "--name", "Duplicate",
         "--timezone", "UTC");
 
     new CreateCalendarCommand(tokens).execute(model, view);
@@ -63,57 +81,14 @@ public class CreateCalendarCommandTest {
       new CreateCalendarCommand(tokens).execute(model, view);
       fail("Expected ValidationException for duplicate calendar name.");
     } catch (ValidationException e) {
-      assertEquals("A calendar with the name 'Test' already exists.", e.getMessage());
+      assertEquals("A calendar with the name 'Duplicate' already exists.", e.getMessage());
     }
   }
 
-  /**
-   * Ensures the command fails if the user provides a string
-   * that isn't a valid IANA timezone ID.
-   */
-  @Test
-  public void testCreateCalendarBadTimezone() throws Exception {
-    List<String> tokens = List.of("create", "calendar", "--name", "Test",
-        "--timezone", "Mars/Gale_Crater");
-    try {
-      new CreateCalendarCommand(tokens).execute(model, view);
-      fail("Expected ValidationException for bad timezone string.");
-    } catch (ValidationException e) {
-      assertEquals("Invalid timezone format: Mars/Gale_Crater", e.getMessage());
-    } catch (DateTimeException e) {
-      fail("Command threw the wrong exception. Expected ValidationException, got " + e);
-    }
-  }
-
-  /**
-   * Checks that the command fails gracefully if not enough
-   * arguments are provided.
-   */
   @Test(expected = ValidationException.class)
-  public void testCreateCalendarBadSyntaxShort() throws Exception {
-    List<String> tokens = List.of("create", "calendar", "--name", "Test");
-    new CreateCalendarCommand(tokens).execute(model, view);
-  }
-
-  /**
-   * Checks that the command fails if the keywords
-   * '--name' and '--timezone' are missing.
-   */
-  @Test(expected = ValidationException.class)
-  public void testCreateCalendarBadSyntaxKeywords() throws Exception {
-    List<String> tokens = List.of("create", "calendar", "name", "Test",
+  public void testCommandRejectsMissingFlags() throws Exception {
+    List<String> tokens = List.of("create", "calendar", "name", "Bad Syntax",
         "timezone", "UTC");
-    new CreateCalendarCommand(tokens).execute(model, view);
-  }
-
-  /**
-   * Checks that the command fails if the '--timezone'
-   * keyword is misspelled (e.g., --zone).
-   */
-  @Test(expected = ValidationException.class)
-  public void testCreateCalendarBadTimezoneKeyword() throws Exception {
-    List<String> tokens = List.of("create", "calendar", "--name", "Test",
-        "--zone", "UTC");
     new CreateCalendarCommand(tokens).execute(model, view);
   }
 }

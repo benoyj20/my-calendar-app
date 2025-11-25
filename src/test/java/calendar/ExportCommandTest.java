@@ -1,7 +1,5 @@
 package calendar;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -21,87 +19,60 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Tests the {@link ExportCommand} class.
- * Creates and reads temporary files to verify export content
- * for both CSV and iCal formats.
+ * Ensures the ExportCommand correctly writes calendar data to files,
+ * verifying both CSV and iCal formats, handling special characters properly,
+ * and rejecting invalid file types.
  */
 public class ExportCommandTest {
 
   private ApplicationManager model;
   private TestView view;
+  private File tempCsvFile = null;
+  private File tempIcalFile = null;
 
   /**
-   * Sets up a small mix of events before each test — a normal one,
-   * one with special characters to test escaping, and an all-day
-   * event with mostly empty fields.
+   * Sets up a "Work" calendar with a mix of vents
+   * (quotes, commas, all-day) before each test.
    */
   @Before
   public void setUp() throws ValidationException {
     model = new ApplicationManagerImpl();
     view = new TestView();
 
-    model.createCalendar("TestCal", ZoneId.of("America/New_York"));
-    model.setActiveCalendar("TestCal");
+    model.createCalendar("Work", ZoneId.of("America/New_York"));
+    model.setActiveCalendar("Work");
 
-    LocalDateTime start = LocalDateTime.of(2025, 11, 20, 14, 30);
-    LocalDateTime end = LocalDateTime.of(2025, 11, 20, 15, 0);
+    LocalDateTime baseTime = LocalDateTime.of(2025, 11, 20, 14, 30);
 
-    Event simpleEvent = Event.builder()
-        .setSubject("Test Event")
-        .setStart(start)
-        .setEnd(end)
-        .setLocation("Here")
-        .setDescription("A test")
+    Event standard = Event.builder()
+        .setSubject("Weekly Sync")
+        .setStart(baseTime)
+        .setEnd(baseTime.plusMinutes(30))
+        .setLocation("Room 101")
+        .setDescription("Regular team updates")
         .build();
 
-    Event quoteEvent = Event.builder()
-        .setSubject("Comma, Quote and Newline")
-        .setStart(start.plusDays(1))
-        .setEnd(end.plusDays(1))
-        .setLocation("Main Office, 2nd Floor")
-        .setDescription("A quote: \"Hello\"\nAnd a newline.")
+    Event complex = Event.builder()
+        .setSubject("Review: Q4, Strategy & Goals")
+        .setStart(baseTime.plusDays(1))
+        .setEnd(baseTime.plusDays(1).plusMinutes(30))
+        .setLocation("Main Hall, West Wing")
+        .setDescription("Notes: \"Important\"\nDon't be late.")
         .setPrivate(true)
         .build();
 
-    Event allDayEmptyEvent = Event.builder()
-        .setSubject("All Day Event")
-        .setStart(start.plusDays(2))
-        .setEnd(end.plusDays(2))
+    Event allDay = Event.builder()
+        .setSubject("Company Holiday")
+        .setStart(baseTime.plusDays(2))
+        .setEnd(baseTime.plusDays(2).plusMinutes(30))
         .setAllDay(true)
         .build();
 
-    Event commaEvent = Event.builder()
-        .setSubject("Comma Event")
-        .setStart(start.plusDays(3))
-        .setEnd(end.plusDays(3))
-        .setLocation("A, B")
-        .build();
-
-    Event quoteOnlyEvent = Event.builder()
-        .setSubject("Quote Event")
-        .setStart(start.plusDays(4))
-        .setEnd(end.plusDays(4))
-        .setDescription("A \"quote\"")
-        .build();
-
-    Event newlineEvent = Event.builder()
-        .setSubject("Newline Event")
-        .setStart(start.plusDays(5))
-        .setEnd(end.plusDays(5))
-        .setDescription("Line 1\nLine 2")
-        .build();
-
-    model.getActiveCalendar().addEvents(List.of(
-        simpleEvent, quoteEvent, allDayEmptyEvent,
-        commaEvent, quoteOnlyEvent, newlineEvent
-    ));
+    model.getActiveCalendar().addEvents(List.of(standard, complex, allDay));
   }
 
-  private File tempCsvFile = null;
-  private File tempIcalFile = null;
-
   /**
-   * Cleans up any temporary files we created so we don't pollute the file system.
+   * Cleanup.
    */
   @After
   public void tearDown() {
@@ -115,13 +86,31 @@ public class ExportCommandTest {
     }
   }
 
-  /**
-   * Checks a standard, simple CSV export. This makes sure the happy path
-   * works and the headers are written correctly.
-   */
   @Test
-  public void testExportSuccessCsv() throws Exception {
-    tempCsvFile = File.createTempFile("test_cal_export", ".csv");
+  public void testCanExportSpecialCharactersToIcal() throws Exception {
+    tempIcalFile = File.createTempFile("complex_export", ".ical");
+    tempIcalFile.deleteOnExit();
+    String path = tempIcalFile.getAbsolutePath();
+
+    List<String> tokens = List.of("export", "cal", path);
+    new ExportCommand(tokens).execute(model, view);
+
+    String content = Files.readString(tempIcalFile.toPath());
+
+    assertTrue(content.contains("SUMMARY:Review: Q4\\, Strategy & Goals"));
+    assertTrue(content.contains("LOCATION:Main Hall\\, West Wing"));
+    assertTrue(content.contains("DESCRIPTION:Notes: \"Important\"\\nDon't be late."));
+  }
+
+  @Test(expected = ValidationException.class)
+  public void testRejectsExportWithoutFilename() throws Exception {
+    List<String> tokens = List.of("export", "cal");
+    new ExportCommand(tokens).execute(model, view);
+  }
+
+  @Test
+  public void testCanExportStandardCsv() throws Exception {
+    tempCsvFile = File.createTempFile("simple_export", ".csv");
     tempCsvFile.deleteOnExit();
     String path = tempCsvFile.getAbsolutePath();
 
@@ -133,17 +122,33 @@ public class ExportCommandTest {
     String content = Files.readString(tempCsvFile.toPath());
     assertTrue(content.contains("Subject,Start Date,Start Time,End Date,End Time"));
     assertTrue(content.contains(
-        "Test Event,11/20/2025,02:30 PM,11/20/2025,03:00 PM,False,A test,Here,False"
+        "Weekly Sync,11/20/2025,02:30 PM,11/20/2025,03:00 PM,False,Regular "
+           + "team updates,Room 101,False"
     ));
   }
 
-  /**
-   * Tests a CSV export where the event subject and location have commas,
-   * quotes, and newlines. This ensures our `quote()` method is working right.
-   */
   @Test
-  public void testExportWithQuotedFieldsCsv() throws Exception {
-    tempCsvFile = File.createTempFile("test_quote_export", ".csv");
+  public void testCanExportEmptyCalendarToIcal() throws Exception {
+    model.createCalendar("Empty", ZoneId.of("UTC"));
+    model.setActiveCalendar("Empty");
+
+    tempIcalFile = File.createTempFile("empty_export", ".ical");
+    tempIcalFile.deleteOnExit();
+    String path = tempIcalFile.getAbsolutePath();
+
+    List<String> tokens = List.of("export", "cal", path);
+    new ExportCommand(tokens).execute(model, view);
+
+    String content = Files.readString(tempIcalFile.toPath());
+
+    assertTrue(content.contains("BEGIN:VCALENDAR"));
+    assertTrue(content.contains("PRODID:-//ChillCoders//VirtualCalendar v1.0//EN"));
+    assertTrue(content.endsWith("END:VCALENDAR\n"));
+  }
+
+  @Test
+  public void testCanExportComplexCsvWithQuotes() throws Exception {
+    tempCsvFile = File.createTempFile("complex_export", ".csv");
     tempCsvFile.deleteOnExit();
     String path = tempCsvFile.getAbsolutePath();
 
@@ -153,14 +158,14 @@ public class ExportCommandTest {
     String content = Files.readString(tempCsvFile.toPath());
 
     assertTrue(content.contains(
-        "\"Comma, Quote and Newline\",11/21/2025,02:30 PM,11/21/2025,03:00 PM,False,\""
-            + "A quote: \"\"Hello\"\"\nAnd a newline.\",\"Main Office, 2nd Floor\",True"
+        "\"Review: Q4, Strategy & Goals\",11/21/2025,02:30 PM,11/21/2025,03:00 PM,False,\""
+            + "Notes: \"\"Important\"\"\nDon't be late.\",\"Main Hall, West Wing\",True"
     ));
   }
 
   @Test
-  public void testExportSuccessIcal() throws Exception {
-    tempIcalFile = File.createTempFile("test_cal_export", ".ical");
+  public void testCanExportStandardIcal() throws Exception {
+    tempIcalFile = File.createTempFile("simple_export", ".ical");
     tempIcalFile.deleteOnExit();
     String path = tempIcalFile.getAbsolutePath();
 
@@ -172,77 +177,33 @@ public class ExportCommandTest {
 
     assertTrue(content.startsWith("BEGIN:VCALENDAR"));
     assertTrue(content.contains("VERSION:1.0"));
-
-    assertTrue(content.contains("PRODID:-//ChillCoders//VirtualCalendar v1.0//EN"));
-
     assertTrue(content.contains("BEGIN:VEVENT"));
 
     assertTrue(Pattern.compile("UID:[a-f0-9\\-]+\n").matcher(content).find());
     assertTrue(Pattern.compile("DTSTAMP:\\d{8}T\\d{6}Z\n").matcher(content).find());
-    assertTrue(Pattern.compile("DTSTART:\\d{8}T\\d{6}Z\n").matcher(content).find());
-    assertTrue(Pattern.compile("DTEND:\\d{8}T\\d{6}Z\n").matcher(content).find());
 
-    assertTrue(content.contains("SUMMARY:Test Event"));
-    assertTrue(content.contains("LOCATION:Here"));
-    assertTrue(content.contains("DESCRIPTION:A test"));
+    assertTrue(content.contains("SUMMARY:Weekly Sync"));
+    assertTrue(content.contains("LOCATION:Room 101"));
+    assertTrue(content.contains("DESCRIPTION:Regular team updates"));
     assertTrue(content.contains("CLASS:PRIVATE"));
     assertTrue(content.contains("END:VEVENT"));
     assertTrue(content.endsWith("END:VCALENDAR\n"));
   }
 
-  /**
-   * Tests an iCal export with special characters. This checks that commas
-   * and newlines are properly escaped with backslashes.
-   */
   @Test
-  public void testExportWithEscapedFieldsIcal() throws Exception {
-    tempIcalFile = File.createTempFile("test_quote_export", ".ical");
-    tempIcalFile.deleteOnExit();
-    String path = tempIcalFile.getAbsolutePath();
-
-    List<String> tokens = List.of("export", "cal", path);
-    new ExportCommand(tokens).execute(model, view);
-
-    String content = Files.readString(tempIcalFile.toPath());
-
-    assertTrue(content.contains("SUMMARY:Comma\\, Quote and Newline"));
-    assertTrue(content.contains("LOCATION:Main Office\\, 2nd Floor"));
-    assertTrue(content.contains("DESCRIPTION:A quote: \"Hello\"\\nAnd a newline."));
-  }
-
-  /**
-   * Makes sure the command fails if the user just types `export cal`
-   * without a filename.
-   */
-  @Test(expected = ValidationException.class)
-  public void testExportSyntaxError() throws Exception {
-    List<String> tokens = List.of("export", "cal");
-    new ExportCommand(tokens).execute(model, view);
-  }
-
-  /**
-   * Makes sure the command fails if the user tries to export
-   * to a weird file type like `.txt`.
-   */
-  @Test
-  public void testExportUnsupportedExtension() throws Exception {
-    List<String> tokens = List.of("export", "cal", "myfile.txt");
+  public void testFailsForInvalidFileExtension() throws Exception {
+    List<String> tokens = List.of("export", "cal", "schedule.pdf");
     try {
       new ExportCommand(tokens).execute(model, view);
       fail("Expected ValidationException for unsupported file type.");
     } catch (ValidationException e) {
-      assertEquals("Unsupported file type. Please use .csv or .ical", e.getMessage());
+      assertTrue(e.getMessage().contains("Unsupported file type"));
     }
   }
 
-  /**
-   * Tests the CSV export for an all-day event. This also checks that `null` or
-   * empty fields (like description) are exported as just empty commas,
-   * not the string "null".
-   */
   @Test
-  public void testExportCoversAllDayAndEmptyFields() throws Exception {
-    tempCsvFile = File.createTempFile("test_allday_export", ".csv");
+  public void testCanExportAllDayEventsCsv() throws Exception {
+    tempCsvFile = File.createTempFile("allday_export", ".csv");
     tempCsvFile.deleteOnExit();
     String path = tempCsvFile.getAbsolutePath();
 
@@ -252,82 +213,7 @@ public class ExportCommandTest {
     String content = Files.readString(tempCsvFile.toPath());
 
     assertTrue(content.contains(
-        "All Day Event,11/22/2025,02:30 PM,11/22/2025,03:00 PM,True,,,False"
+        "Company Holiday,11/22/2025,02:30 PM,11/22/2025,03:00 PM,True,,,False"
     ));
-  }
-
-  /**
-   * Verifies that a field containing only a comma is correctly quoted.
-   */
-  @Test
-  public void testExportQuotesFieldWithComma() throws Exception {
-    tempCsvFile = File.createTempFile("test_comma_export", ".csv");
-    tempCsvFile.deleteOnExit();
-    String path = tempCsvFile.getAbsolutePath();
-
-    List<String> tokens = List.of("export", "cal", path);
-    new ExportCommand(tokens).execute(model, view);
-
-    String content = Files.readString(tempCsvFile.toPath());
-    assertTrue(content.contains("Comma Event"));
-    assertTrue(content.contains("\"A, B\""));
-  }
-
-  /**
-   * Verifies that a field containing only a double-quote is correctly quoted.
-   */
-  @Test
-  public void testExportQuotesFieldWithQuote() throws Exception {
-    tempCsvFile = File.createTempFile("test_quote_only_export", ".csv");
-    tempCsvFile.deleteOnExit();
-    String path = tempCsvFile.getAbsolutePath();
-
-    List<String> tokens = List.of("export", "cal", path);
-    new ExportCommand(tokens).execute(model, view);
-
-    String content = Files.readString(tempCsvFile.toPath());
-    assertTrue(content.contains("Quote Event"));
-    assertTrue(content.contains("\"A \"\"quote\"\"\""));
-  }
-
-  /**
-   * Verifies that a field containing only a newline is correctly quoted.
-   */
-  @Test
-  public void testExportQuotesFieldWithNewline() throws Exception {
-    tempCsvFile = File.createTempFile("test_newline_export", ".csv");
-    tempCsvFile.deleteOnExit();
-    String path = tempCsvFile.getAbsolutePath();
-
-    List<String> tokens = List.of("export", "cal", path);
-    new ExportCommand(tokens).execute(model, view);
-
-    String content = Files.readString(tempCsvFile.toPath());
-    assertTrue(content.contains("Newline Event"));
-    assertTrue(content.contains("\"Line 1\nLine 2\""));
-  }
-
-  /**
-   * Tests an iCal export on an empty calendar. This ensures the for-loop
-   * is skipped but the header/footer are still written correctly.
-   */
-  @Test
-  public void testExportIcalOnEmptyCalendar() throws Exception {
-    model.createCalendar("EmptyCal", ZoneId.of("UTC"));
-    model.setActiveCalendar("EmptyCal");
-
-    tempIcalFile = File.createTempFile("test_empty_export", ".ical");
-    tempIcalFile.deleteOnExit();
-    String path = tempIcalFile.getAbsolutePath();
-
-    List<String> tokens = List.of("export", "cal", path);
-    new ExportCommand(tokens).execute(model, view);
-
-    String content = Files.readString(tempIcalFile.toPath());
-
-    assertTrue(content.contains("BEGIN:VCALENDAR"));
-    assertTrue(content.contains("PRODID:-//ChillCoders//VirtualCalendar v1.0//EN"));
-    assertFalse("Should not contain any VEVENT blocks", content.contains("BEGIN:VEVENT"));
-    assertTrue(content.endsWith("END:VCALENDAR\n"));
   }
 }

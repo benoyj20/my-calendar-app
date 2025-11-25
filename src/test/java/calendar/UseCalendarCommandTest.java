@@ -13,71 +13,53 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Tests the {@link UseCalendarCommand} class to ensure it
- * correctly sets the active calendar and handles all error cases.
+ * Verifies that the UseCalendarCommand correctly switches the active calendar
+ * within the application, handling both successful switches and errors for missing calendars.
  */
 public class UseCalendarCommandTest {
 
   private ApplicationManager model;
   private TestView view;
 
-
   /**
-   * Sets up a fresh model and view, and creates a
-   * calendar that we can try to "use".
+   * Prepares a model with a "Personal" calendar before each test.
    */
   @Before
   public void setUp() throws ValidationException {
     model = new ApplicationManagerImpl();
     view = new TestView();
-    model.createCalendar("Work", ZoneId.of("UTC"));
+    model.createCalendar("Personal", ZoneId.of("UTC"));
   }
 
-  /**
-   * Tests the standard success path where the calendar
-   * exists and is correctly set as active.
-   */
-  @Test
-  public void testUseCalendarSuccess() throws Exception {
-    List<String> tokens = List.of("use", "calendar", "--name", "Work");
-    new UseCalendarCommand(tokens).execute(model, view);
-
-    assertEquals("Now using calendar 'Work'.", view.getLastMessage());
-    assertEquals("Work", model.getActiveCalendar().getName());
-  }
-
-  /**
-   * Ensures the command fails if the specified calendar
-   * name does not exist in the model.
-   */
-  @Test
-  public void testUseCalendarNotFound() throws Exception {
-    List<String> tokens = List.of("use", "calendar", "--name", "Missing");
-    try {
-      new UseCalendarCommand(tokens).execute(model, view);
-      fail("Expected ValidationException for missing calendar.");
-    } catch (ValidationException e) {
-      assertEquals("Calendar 'Missing' not found.", e.getMessage());
-    }
-  }
-
-  /**
-   * Checks that the command fails when too few arguments
-   * are provided (e.g., missing the calendar name).
-   */
   @Test(expected = ValidationException.class)
-  public void testUseCalendarSyntaxErrorShort() throws Exception {
+  public void testFailsWhenCommandIsIncomplete() throws Exception {
     List<String> tokens = List.of("use", "calendar", "--name");
     new UseCalendarCommand(tokens).execute(model, view);
   }
 
-  /**
-   * Checks that the command fails if the '--name' keyword
-   * is missing or incorrect.
-   */
-  @Test(expected = ValidationException.class)
-  public void testUseCalendarSyntaxErrorBadKeyword() throws Exception {
-    List<String> tokens = List.of("use", "calendar", "name", "Work");
+  @Test
+  public void testCanSwitchToExistingCalendar() throws Exception {
+    List<String> tokens = List.of("use", "calendar", "--name", "Personal");
     new UseCalendarCommand(tokens).execute(model, view);
+
+    assertEquals("Now using calendar 'Personal'.", view.getLastMessage());
+    assertEquals("Personal", model.getActiveCalendar().getName());
+  }
+
+  @Test(expected = ValidationException.class)
+  public void testFailsWhenNameFlagIsMissing() throws Exception {
+    List<String> tokens = List.of("use", "calendar", "name", "Personal");
+    new UseCalendarCommand(tokens).execute(model, view);
+  }
+
+  @Test
+  public void testFailsWhenCalendarDoesNotExist() throws Exception {
+    List<String> tokens = List.of("use", "calendar", "--name", "Secret Project");
+    try {
+      new UseCalendarCommand(tokens).execute(model, view);
+      fail("Expected ValidationException for missing calendar.");
+    } catch (ValidationException e) {
+      assertEquals("Calendar 'Secret Project' not found.", e.getMessage());
+    }
   }
 }

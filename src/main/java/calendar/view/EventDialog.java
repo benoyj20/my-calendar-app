@@ -133,13 +133,13 @@ public class EventDialog extends JDialog {
   }
 
   private void initRecurrenceFields() {
-    cbM = new JCheckBox("M");
-    cbT = new JCheckBox("T");
-    cbW = new JCheckBox("W");
-    cbR = new JCheckBox("Th");
-    cbF = new JCheckBox("F");
-    cbS = new JCheckBox("Sa");
-    cbU = new JCheckBox("Su");
+    cbM = new JCheckBox("Mon");
+    cbT = new JCheckBox("Tue");
+    cbW = new JCheckBox("Wed");
+    cbR = new JCheckBox("Thu");
+    cbF = new JCheckBox("Fri");
+    cbS = new JCheckBox("Sat");
+    cbU = new JCheckBox("Sun");
     repeatTypeBox = new JComboBox<>(new String[] {"None", "Count", "Until"});
     repeatValueField = new JTextField();
   }
@@ -292,21 +292,7 @@ public class EventDialog extends JDialog {
       builder.setStart(sdate.atTime(8, 0));
       builder.setEnd(sdate.atTime(17, 0));
     } else {
-      if (stime.isEmpty() || etime.isEmpty()) {
-        throw new RuntimeException(
-            "For a timed event, both Start Time and End Time must be provided.");
-      }
-      String edatetext = endDateField.getText().trim();
-      LocalDate edate;
-      if (edatetext.isEmpty()) {
-        edate = sdate;
-      } else {
-        try {
-          edate = LocalDate.parse(edatetext, DATE_FORMAT);
-        } catch (DateTimeParseException e) {
-          throw new RuntimeException("Invalid End Date format. Use YYYY-MM-DD.");
-        }
-      }
+      LocalDate edate = getEdate(stime, etime, sdate);
       try {
         builder.setStart(LocalDateTime.of(sdate, LocalTime.parse(stime, TIME_FORMAT)));
         builder.setEnd(LocalDateTime.of(edate, LocalTime.parse(etime, TIME_FORMAT)));
@@ -314,6 +300,25 @@ public class EventDialog extends JDialog {
         throw new RuntimeException("Invalid Time format. Use HH:mm.");
       }
     }
+  }
+
+  private LocalDate getEdate(String stime, String etime, LocalDate sdate) {
+    if (stime.isEmpty() || etime.isEmpty()) {
+      throw new RuntimeException(
+          "For a timed event, both Start Time and End Time must be provided.");
+    }
+    String edatetext = endDateField.getText().trim();
+    LocalDate edate;
+    if (edatetext.isEmpty()) {
+      edate = sdate;
+    } else {
+      try {
+        edate = LocalDate.parse(edatetext, DATE_FORMAT);
+      } catch (DateTimeParseException e) {
+        throw new RuntimeException("Invalid End Date format. Use YYYY-MM-DD.");
+      }
+    }
+    return edate;
   }
 
   private String getRecurrenceString() {

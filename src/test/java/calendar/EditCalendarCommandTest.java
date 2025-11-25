@@ -15,9 +15,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Tests the {@link EditCalendarCommand} class.
- * Validates changing calendar name and timezone, and handles
- * errors like conflicts and unknown properties.
+ * Verifies that the EditCalendarCommand properly handles requests to rename calendars
+ * or change their timezones, including error handling for conflicts and bad input.
  */
 public class EditCalendarCommandTest {
 
@@ -25,165 +24,129 @@ public class EditCalendarCommandTest {
   private TestView view;
 
   /**
-   * Sets up a model with two calendars and activates one.
-   *
-   * @throws ValidationException if setup fails
+   * Prepares the model with two calendars ("Personal" and "Work") and activates one before testing.
    */
   @Before
   public void setUp() throws ValidationException {
     model = new ApplicationManagerImpl();
     view = new TestView();
 
-    model.createCalendar("Work", ZoneId.of("America/New_York"));
-    model.createCalendar("Home", ZoneId.of("America/Los_Angeles"));
-    model.setActiveCalendar("Work");
+    model.createCalendar("Personal", ZoneId.of("America/New_York"));
+    model.createCalendar("Work", ZoneId.of("America/Los_Angeles"));
+    model.setActiveCalendar("Personal");
   }
 
-  /**
-   * Checks the "happy path" for renaming a calendar.
-   */
-  @Test
-  public void testEditCalendarNameSuccess() throws Exception {
-    List<String> tokens = List.of("edit", "calendar", "--name", "Work",
-        "--property", "name", "Work-Renamed");
+  @Test(expected = ValidationException.class)
+  public void testRejectsMissingNameFlag() throws Exception {
+    List<String> tokens = List.of("edit", "calendar", "name", "Personal",
+        "--property", "name", "NewName");
     new EditCalendarCommand(tokens).execute(model, view);
-
-    assertEquals("Calendar 'Work' renamed to 'Work-Renamed'.", view.getLastMessage());
-
-    assertNotNull(model.getCalendar("Work-Renamed"));
-    try {
-      model.getCalendar("Work");
-      fail("Old calendar name 'Work' should no longer exist.");
-    } catch (ValidationException e) {
-      assertEquals("Calendar 'Work' not found.", e.getMessage());
-    }
   }
 
-  /**
-   * Checks the "happy path" for changing a calendar's timezone.
-   */
   @Test
-  public void testEditCalendarTimezoneSuccess() throws Exception {
-    List<String> tokens = List.of("edit", "calendar", "--name", "Work",
+  public void testCanChangeTimezone() throws Exception {
+    List<String> tokens = List.of("edit", "calendar", "--name", "Personal",
         "--property", "timezone", "Europe/Paris");
     new EditCalendarCommand(tokens).execute(model, view);
 
-    assertEquals("Calendar 'Work' timezone updated to 'Europe/Paris'.", view.getLastMessage());
-    assertEquals(ZoneId.of("Europe/Paris"), model.getCalendar("Work").getZoneId());
+    assertEquals("Calendar 'Personal' timezone updated to 'Europe/Paris'.", view.getLastMessage());
+    assertEquals(ZoneId.of("Europe/Paris"), model.getCalendar("Personal").getZoneId());
   }
 
-  /**
-   * Verifies that renaming a calendar to an already existing name fails.
-   */
+  @Test(expected = ValidationException.class)
+  public void testRejectsCommandWithTooManyTokens() throws Exception {
+    List<String> tokens = List.of("edit", "calendar", "--name", "Personal",
+        "--property", "name", "NewName", "extra-token");
+    new EditCalendarCommand(tokens).execute(model, view);
+  }
+
   @Test
-  public void testEditCalendarNameConflict() throws Exception {
-    List<String> tokens = List.of("edit", "calendar", "--name", "Work",
-        "--property", "name", "Home");
+  public void testFailsWhenRenamingToExistingName() throws Exception {
+    List<String> tokens = List.of("edit", "calendar", "--name", "Personal",
+        "--property", "name", "Work");
     try {
       new EditCalendarCommand(tokens).execute(model, view);
       fail("Expected ValidationException for duplicate name.");
     } catch (ValidationException e) {
-      assertEquals("A calendar with the name 'Home' already exists.", e.getMessage());
+      assertEquals("A calendar with the name 'Work' already exists.", e.getMessage());
     }
   }
 
-  /**
-   * Ensures that trying to edit a calendar that doesn't exist throws an error.
-   */
   @Test
-  public void testEditCalendarNotFound() throws Exception {
-    List<String> tokens = List.of("edit", "calendar", "--name", "Missing",
-        "--property", "name", "New");
-    try {
-      new EditCalendarCommand(tokens).execute(model, view);
-      fail("Expected ValidationException for missing calendar.");
-    } catch (ValidationException e) {
-      assertEquals("Calendar 'Missing' not found.", e.getMessage());
-    }
-  }
-
-  /**
-   * Makes sure the command fails if the user tries to edit an invalid property like 'owner'.
-   */
-  @Test
-  public void testEditUnknownProperty() throws Exception {
-    List<String> tokens = List.of("edit", "calendar", "--name", "Work",
-        "--property", "owner", "Me");
+  public void testFailsForUnknownProperty() throws Exception {
+    List<String> tokens = List.of("edit", "calendar", "--name", "Personal",
+        "--property", "color", "Blue");
     try {
       new EditCalendarCommand(tokens).execute(model, view);
       fail("Expected ValidationException for unknown property.");
     } catch (ValidationException e) {
-      assertEquals("Unknown property 'owner'. Can only edit 'name' or 'timezone'.",
+      assertEquals("Unknown property 'color'. Can only edit 'name' or 'timezone'.",
           e.getMessage());
     }
   }
 
-  /**
-   * Ensures that providing a garbage timezone string (not a valid IANA ID) fails.
-   */
   @Test
-  public void testEditInvalidTimezoneValue() throws Exception {
-    List<String> tokens = List.of("edit", "calendar", "--name", "Work",
-        "--property", "timezone", "Mars/Gale_Crater");
+  public void testCanRenameActiveCalendar() throws Exception {
+    List<String> tokens = List.of("edit", "calendar", "--name", "Personal",
+        "--property", "name", "Personal (Archived)");
+    new EditCalendarCommand(tokens).execute(model, view);
+
+    assertEquals("Personal (Archived)", model.getActiveCalendar().getName());
+  }
+
+  @Test
+  public void testCanRenameCalendar() throws Exception {
+    List<String> tokens = List.of("edit", "calendar", "--name", "Personal",
+        "--property", "name", "My Life");
+    new EditCalendarCommand(tokens).execute(model, view);
+
+    assertEquals("Calendar 'Personal' renamed to 'My Life'.", view.getLastMessage());
+
+    assertNotNull(model.getCalendar("My Life"));
+    try {
+      model.getCalendar("Personal");
+      fail("Old calendar name 'Personal' should no longer exist.");
+    } catch (ValidationException e) {
+      assertEquals("Calendar 'Personal' not found.", e.getMessage());
+    }
+  }
+
+  @Test(expected = ValidationException.class)
+  public void testRejectsMissingPropertyFlag() throws Exception {
+    List<String> tokens = List.of("edit", "calendar", "--name", "Personal",
+        "property", "name", "NewName");
+    new EditCalendarCommand(tokens).execute(model, view);
+  }
+
+  @Test
+  public void testFailsIfCalendarDoesNotExist() throws Exception {
+    List<String> tokens = List.of("edit", "calendar", "--name", "Ghost",
+        "--property", "name", "Real");
+    try {
+      new EditCalendarCommand(tokens).execute(model, view);
+      fail("Expected ValidationException for missing calendar.");
+    } catch (ValidationException e) {
+      assertEquals("Calendar 'Ghost' not found.", e.getMessage());
+    }
+  }
+
+  @Test(expected = ValidationException.class)
+  public void testRejectsIncompleteCommand() throws Exception {
+    List<String> tokens = List.of("edit", "calendar", "--name", "Personal");
+    new EditCalendarCommand(tokens).execute(model, view);
+  }
+
+  @Test
+  public void testFailsWithInvalidTimezone() throws Exception {
+    List<String> tokens = List.of("edit", "calendar", "--name", "Personal",
+        "--property", "timezone", "Mars/Olympus_Mons");
     try {
       new EditCalendarCommand(tokens).execute(model, view);
       fail("Expected ValidationException for invalid timezone.");
     } catch (ValidationException e) {
-      assertEquals("Invalid timezone format: Mars/Gale_Crater", e.getMessage());
+      assertEquals("Invalid timezone format: Mars/Olympus_Mons", e.getMessage());
     } catch (DateTimeException e) {
       fail("Command threw the wrong exception. Expected ValidationException, got " + e);
     }
-  }
-
-  /**
-   * Tests the command's syntax validation for a command that is too short.
-   */
-  @Test(expected = ValidationException.class)
-  public void testEditSyntaxErrorShort() throws Exception {
-    List<String> tokens = List.of("edit", "calendar", "--name", "Work");
-    new EditCalendarCommand(tokens).execute(model, view);
-  }
-
-  /**
-   * Tests the syntax validation for a missing or incorrect '--name' keyword.
-   */
-  @Test(expected = ValidationException.class)
-  public void testEditSyntaxErrorBadNameKeyword() throws Exception {
-    List<String> tokens = List.of("edit", "calendar", "name", "Work",
-        "--property", "name", "New");
-    new EditCalendarCommand(tokens).execute(model, view);
-  }
-
-  /**
-   * Tests the syntax validation for a missing or incorrect '--property' keyword.
-   */
-  @Test(expected = ValidationException.class)
-  public void testEditSyntaxErrorBadPropertyKeyword() throws Exception {
-    List<String> tokens = List.of("edit", "calendar", "--name", "Work",
-        "property", "name", "New");
-    new EditCalendarCommand(tokens).execute(model, view);
-  }
-
-  /**
-   * Checks the important edge case of renaming the *active* calendar
-   * to ensure the model's state remains valid.
-   */
-  @Test
-  public void testEditActiveCalendarName() throws Exception {
-    List<String> tokens = List.of("edit", "calendar", "--name", "Work",
-        "--property", "name", "Work-Renamed");
-    new EditCalendarCommand(tokens).execute(model, view);
-
-    assertEquals("Work-Renamed", model.getActiveCalendar().getName());
-  }
-
-  /**
-   * Tests the command's syntax validation for a command that has too many tokens.
-   */
-  @Test(expected = ValidationException.class)
-  public void testEditSyntaxErrorLong() throws Exception {
-    List<String> tokens = List.of("edit", "calendar", "--name", "Work",
-        "--property", "name", "NewName", "extra-token");
-    new EditCalendarCommand(tokens).execute(model, view);
   }
 }

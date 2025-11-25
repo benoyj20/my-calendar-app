@@ -27,9 +27,8 @@ public interface ControllerFeatures {
 
   /**
    * Updates the details of the currently active calendar.
-   * Note: Changing the timezone here will shift all existing events to match the new zone.
    *
-   * @param newName   The new name to assign (can be the same as the old one).
+   * @param newName   The new name to assign.
    * @param newZoneId The new timezone setting.
    * @throws Exception If the new name conflicts with another existing calendar.
    */
@@ -54,7 +53,6 @@ public interface ControllerFeatures {
 
   /**
    * Moves the calendar view forward or backward in time.
-   * The actual jump depends on the current view mode (e.g., next month vs. next week).
    *
    * @param amount Use -1 to go back and +1 to go forward.
    */
@@ -68,8 +66,7 @@ public interface ControllerFeatures {
   void setViewMode(ViewMode mode);
 
   /**
-   * Updates the system's "focus" date.
-   * This is usually called when a user clicks a specific day cell in the Month view,
+   * This is called when a user clicks a specific day cell in the Month view,
    * preparing the app to show detailed events for that specific date.
    *
    * @param date The date the user clicked on.
@@ -84,7 +81,7 @@ public interface ControllerFeatures {
    * @param repeatDays   A string like "MWF" for repeating days, or empty for a single event.
    * @param repeatType   Either "Count" (for N times) or "Until" (for a specific end date).
    * @param repeatValue  The number of times or the date string to stop repeating.
-   * @throws Exception If the data is invalid (e.g., end time before start time).
+   * @throws Exception If the data is invalid.
    */
   void createEvent(Event.EventBuilder eventBuilder, String repeatDays, String repeatType,
                    String repeatValue) throws Exception;
@@ -114,13 +111,13 @@ public interface ControllerFeatures {
    * The view uses this to decide whether to ask the "Edit Series?" question.
    *
    * @param event The event to check.
-   * @return true if this event is linked to others via a series ID.
+   * @return true if this event is linked to others by a series ID.
    */
   boolean isEventPartofSeries(Event event);
 
   /**
    * Looks up the timezone for a specific calendar.
-   * The view needs this to pre-fill the "Edit Calendar" dialog with the current setting.
+   * The view needs this to fill the "Edit Calendar" dialog with the current setting.
    *
    * @param calendarName The name of the calendar.
    * @return The ZoneId associated with that calendar.
@@ -128,7 +125,7 @@ public interface ControllerFeatures {
   ZoneId getZoneId(String calendarName);
 
   /**
-   * Connects the Swing window (View) to this controller.
+   * Connects the window (View) to this controller.
    * Once connected, we immediately trigger a refresh so the window isn't empty.
    *
    * @param view The main GUI window interface.
@@ -140,7 +137,7 @@ public interface ControllerFeatures {
    *
    * @param searchType "subject" or "time"
    * @param searchArg1 The subject string or the start time string.
-   * @param searchArg2 The end time string (only used if searchType is "time").
+   * @param searchArg2 The time string (only used if searchType is "time").
    * @param property   The property to edit (e.g., "location", "status").
    * @param newValue   The new value to apply.
    * @throws Exception If validation fails or formats are incorrect.
