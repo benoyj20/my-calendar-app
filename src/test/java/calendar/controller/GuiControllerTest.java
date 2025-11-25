@@ -4,12 +4,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import calendar.model.ApplicationManager;
 import calendar.model.ApplicationManagerImpl;
 import calendar.model.Calendar;
+import calendar.model.EditScope;
 import calendar.model.Event;
 import calendar.model.ValidationException;
 import calendar.view.CalendarView;
@@ -743,6 +745,117 @@ public class GuiControllerTest {
   }
 
   @Test
+  public void testRefreshViewNoActiveCalendarTriggersEmptyMonthView() throws Exception {
+    class NoActiveCalendarModel extends ApplicationManagerImpl {
+      @Override
+      public Calendar getActiveCalendar() throws ValidationException {
+        throw new ValidationException("no-active");
+      }
+
+      @Override
+      public Set<String> getCalendarNames() {
+        return Collections.emptySet();
+      }
+    }
+
+    FakeGuiView view = new FakeGuiView();
+    NoActiveCalendarModel model = new NoActiveCalendarModel();
+
+    GuiController controller = new GuiController(model, view);
+
+    assertNotNull(view.lastMonth);
+    assertTrue(view.lastMonthEvents.isEmpty());
+  }
+
+  @Test
+  public void testFilterEventsPredicateIsCovered() throws Exception {
+    ApplicationManagerImpl model = new ApplicationManagerImpl();
+    FakeGuiView view = new FakeGuiView();
+    final GuiController controller = new GuiController(model, view);
+
+    model.createCalendar("TestCal", ZoneId.systemDefault());
+    model.setActiveCalendar("TestCal");
+    calendar.model.Calendar cal = model.getActiveCalendar();
+
+    LocalDate rangeStart = LocalDate.of(2025, 1, 10);
+    LocalDate rangeEnd   = LocalDate.of(2025, 1, 11);
+
+    LocalDateTime startDt = rangeStart.atStartOfDay();
+    LocalDateTime endDt   = rangeEnd.atStartOfDay();
+
+    Event inRange = Event.builder()
+        .setSubject("In")
+        .setStart(startDt.plusHours(1))
+        .setEnd(endDt.plusHours(1))
+        .build();
+
+    Event outRange = Event.builder()
+        .setSubject("Out")
+        .setStart(endDt.plusHours(5))
+        .setEnd(endDt.plusHours(7))
+        .build();
+
+    cal.addEvent(inRange);
+    cal.addEvent(outRange);
+
+    Method m = GuiController.class.getDeclaredMethod("filterEvents",
+        List.class, LocalDate.class, LocalDate.class);
+    m.setAccessible(true);
+
+    @SuppressWarnings("unchecked")
+    List<Event> result = (List<Event>) m.invoke(controller,
+        List.of(inRange, outRange), rangeStart, rangeEnd);
+
+    assertEquals(1, result.size());
+    assertTrue(result.contains(inRange));
+    assertFalse(result.contains(outRange));
+  }
+
+  @Test
+  public void testDeleteCalendarShowMessageCovered() throws Exception {
+    FakeAppManager model = new FakeAppManager();
+    model.createCalendar("Work", ZoneId.systemDefault());
+    model.setActiveCalendar("Work");
+
+    FakeGuiView view = new FakeGuiView();
+    GuiController controller = new GuiController(model, view);
+
+    controller.deleteCalendar("Work");
+
+    assertEquals("Calendar 'Work' deleted.", view.lastInfoMessage);
+  }
+
+  @Test
+  public void testShiftEventStartReturnsUpdatedBuilder() throws Exception {
+    FakeAppManager model = new FakeAppManager();
+    model.createCalendar("Test", ZoneId.systemDefault());
+    model.setActiveCalendar("Test");
+
+    FakeGuiView view = new FakeGuiView();
+    GuiController controller = new GuiController(model, view);
+
+    Event.EventBuilder builder = Event.builder()
+        .setSubject("TestEvent")
+        .setStart(LocalDateTime.of(2025, 1, 1, 10, 0))
+        .setEnd(LocalDateTime.of(2025, 1, 1, 11, 0));
+
+    LocalDateTime newStart = LocalDateTime.of(2025, 1, 2, 8, 0);
+
+    Method m = GuiController.class.getDeclaredMethod(
+        "shiftEventStart",
+        Event.EventBuilder.class,
+        LocalDateTime.class
+    );
+    m.setAccessible(true);
+
+    Event.EventBuilder result = (Event.EventBuilder) m.invoke(controller, builder, newStart);
+    Event shifted = result.build();
+
+    assertEquals(newStart, shifted.getStart());
+    assertEquals(newStart.plusHours(1), shifted.getEnd());
+  }
+
+  @Test
   public void testExportCalendarCsvAndIcal() throws Exception {
     GuiController controller = new GuiController(model, view);
 
@@ -766,6 +879,56 @@ public class GuiControllerTest {
       ical.delete();
     }
   }
+
+  @Test
+  public void testIsTimePropertyCoversAllPit() throws Exception {
+    GuiController controller = new GuiController(new FakeAppManager(), new FakeGuiView());
+
+    Method m = GuiController.class.getDeclaredMethod("isTimeProperty", String.class);
+    m.setAccessible(true);
+
+    assertTrue((Boolean) m.invoke(controller, "start date"));
+
+    assertTrue((Boolean) m.invoke(controller, "end time"));
+
+    assertTrue((Boolean) m.invoke(controller, "datetime"));
+
+    assertFalse((Boolean) m.invoke(controller, "subject"));
+  }
+
+  @Test
+  public void testSetEventEndReturnsBuilder() throws Exception {
+    FakeAppManager model = new FakeAppManager();
+    model.createCalendar("Test", ZoneId.systemDefault());
+    model.setActiveCalendar("Test");
+
+    FakeGuiView view = new FakeGuiView();
+    GuiController controller = new GuiController(model, view);
+
+    Event.EventBuilder builder = Event.builder()
+        .setSubject("TestEvent")
+        .setStart(LocalDateTime.of(2025, 1, 1, 10, 0))
+        .setEnd(LocalDateTime.of(2025, 1, 1, 11, 0));
+
+    LocalDateTime newEnd = LocalDateTime.of(2025, 1, 1, 12, 0);
+
+    Method m = GuiController.class.getDeclaredMethod(
+        "setEventEnd",
+        Event.EventBuilder.class,
+        LocalDateTime.class
+    );
+    m.setAccessible(true);
+
+    Event.EventBuilder result =
+        (Event.EventBuilder) m.invoke(controller, builder, newEnd);
+
+    Event updated = result.build();
+
+    assertEquals(newEnd, updated.getEnd());
+
+    assertSame(builder, result);
+  }
+
 
   @Test
   public void testSetEventEndCatchBlock() throws Exception {
@@ -1210,6 +1373,29 @@ public class GuiControllerTest {
         LocalTime.parse("15:45"), updated.getEnd().toLocalTime());
   }
 
+  @Test
+  public void testEditEventUsesSingleBranch() throws Exception {
+    ApplicationManagerImpl model = new ApplicationManagerImpl();
+    model.createCalendar("A", ZoneId.systemDefault());
+    GuiController controller = new GuiController(model, new FakeGuiView());
+
+    Event original = Event.builder()
+        .setSubject("x")
+        .setStart(LocalDateTime.of(2025, 1, 1, 10, 0))
+        .setEnd(LocalDateTime.of(2025, 1, 1, 11, 0))
+        .setSeriesId(UUID.randomUUID())
+        .build();
+
+    model.getActiveCalendar().addEvent(original);
+
+    Event.EventBuilder newB = Event.builder().fromEvent(original).setSubject("updated");
+
+    controller.editEvent(original, newB, EditScope.SINGLE);
+
+    List<Event> all = model.getActiveCalendar().findEvents(e -> true);
+    assertEquals(1, all.size());
+    assertEquals("updated", all.get(0).getSubject());
+  }
 
   /**
    * A fake ApplicationManager that always throws on createCalendar
