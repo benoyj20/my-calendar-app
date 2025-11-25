@@ -8,7 +8,7 @@ The application supports:
 - Multiple named calendars with different time zones
 - Copying events and event series between calendars (with time-zone conversion)
 - Exporting calendars as **CSV** and **iCal (.ical)** for Google Calendar
-- **Interactive** and **headless** (file-driven) modes
+- **Interactive**, **headless** and **GUI** modes
 
 The main class is:
 
@@ -49,10 +49,9 @@ build/libs/calendar-1.0.jar
 
 ## 2. Running the Application
 
-The application must be run with a `--mode` argument:
-
-- `--mode interactive` – type commands one by one
-- `--mode headless <commands-file>` – read commands from a file
+- `java -jar build/libs/calendar-1.0.jar` – opens in GUI mode
+- `java -jar build/libs/calendar-1.0.jar --mode interactive` – type commands one by one
+- `java -jar build/libs/calendar-1.0.jar --mode headless <commandFile>` – read commands from a file
 
 All examples below assume the JAR is `build/libs/calendar-1.0.jar`.
 
@@ -339,3 +338,98 @@ If only part of a series overlaps the range, only the overlapping instances are 
   ```text
   exit
   ```
+
+# Using the GUI
+
+Below is the guide to performing all supported operations.
+
+---
+
+## Calendar Management
+
+### Create a New Calendar
+1. Click the **"New Cal"** button in the top-left corner.
+2. Enter a unique **Name** and a valid **Timezone** (e.g., `America/New_York`, `UTC`).
+3. Click **OK**. The new calendar will automatically be selected.
+
+### Switch Calendars
+- Use the dropdown menu next to **"Calendar:"** in the top-left toolbar to choose the active calendar.
+
+### Edit Calendar
+1. Select the calendar you want to modify using the dropdown.
+2. Click **"Edit Cal"**.
+3. Update the name or timezone in the popup dialog.
+
+### Delete Calendar
+1. Select the calendar from the dropdown.
+2. Click **"Delete Cal"**.
+3. Confirm deletion when the warning dialog appears.
+
+---
+
+## Viewing Events
+
+### Change View Mode
+- Toggle between **Month**, **Week**, and **Day** views using the buttons in the top-right of the window.
+
+### Navigate Dates
+- Use the **<** and **>** buttons to move backward or forward in time.
+- The navigation depends on the current view (month, week, or day).
+- The active date range appears between the navigation buttons.
+
+### View Event Details
+- Click any event block in the calendar grid or list.
+- A popup will display details such as **Description**, **Location** , **Start**, **End**, and **Status**.
+
+---
+
+## Event Management
+
+### Create an Event
+1. Click the **"Create New Event"** button at the bottom of the window  
+   (or click **+** in Week view or **Add Event on <date>** in Day view .
+2. Fill in the information:
+    - **Subject**
+    - **Start/End Dates**
+    - **Start/End Times**
+    - **Description**
+    - **Location**
+    - **Status**
+        - Leave times blank for an **All-Day Event**.
+
+#### Recurrence
+- Select the weekdays on which the event repeats (M, T, W).
+- Choose a repeat type:
+    - **Count** — number of occurrences
+    - **Until** — end date
+- Enter the corresponding value (`5` for count or `2025-12-31` for an end date).
+- Click **Save**.
+
+### Edit an Event
+1. Click an event to open the Details dialog.
+2. Click **Edit**.
+3. Modify the fields and click **Save**.
+
+If the event is part of a recurring series, choose the edit scope:
+- **Single Event** — only this instance
+- **Future Events** — this and all following instances
+- **All Events** — the entire series
+
+### Search and Bulk Edit
+1. Click **"Search and Edit"** in the top-right corner.
+2. Choose a search filter:
+    - **Subject**
+    - **Time Range**
+3. Enter filter values.
+4. Select the property to update (Status, Location, etc.).
+5. Click **Apply Changes** to update all matching events.
+
+### Export Calendar
+1. Click **"Export Calendar"** in the top-right corner.
+2. Select the file destination and name.
+3. Choose the format:
+    - **CSV**
+    - **iCal**
+
+---
+
