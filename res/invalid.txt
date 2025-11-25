@@ -1,0 +1,13 @@
+create calendar --name WorkMain --timezone Not/AZone
+create calendar --name WorkMain --timezone America/New_York
+edit calendar --name DoesNotExist --property timezone Europe/London
+edit calendar --name WorkMain --property color blue
+use calendar --title WorkMain
+create event "Bad Date" from 2025-13-01T09:00 to 2025-13-01T10:00
+create event "Missing End" from 2025-01-13T09:00 to 2025-01-13T08:00
+copy event "No Such Event" on 2025-01-13T09:00 --target School to 2025-01-20T10:00
+copy events on 2025-01-15 --target UnknownCal to 2025-01-25
+copy events between 2025-01-20 and 2025-01-10 --target School to 2025-02-01
+print events from 2025-01-21T10:00
+export cal calendar.txt
+show status on Not-A-DateTime
