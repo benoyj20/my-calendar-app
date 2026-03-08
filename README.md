@@ -38,16 +38,6 @@ Open your terminal or command prompt, navigate to the download folder, and use o
     java -jar calendar-1.0.jar --mode headless <path_to_commands.txt>
     ```
     
-The main class is:
-
-- `src/main/java/CalendarRunner.java`
-
----
-
-## Requirements
-
-- **Java 11** or newer installed (`java -version` should show 11+)
-- **Gradle** (the wrapper script `./gradlew` is already in the project)
 
 ---
 
