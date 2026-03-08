@@ -10,6 +10,8 @@ The application supports:
 - Exporting calendars as **CSV** and **iCal (.ical)** for Google Calendar
 - **Interactive**, **headless** and **GUI** modes
 
+  <img width="1889" height="1385" alt="image" src="https://github.com/user-attachments/assets/5e12a08c-16c7-483d-b991-794a9a0bf0e5" />
+
 ## 🚀 Getting Started
 
 This is the standard lightweight version of the application. It requires **Java 11** to be installed on your computer.
