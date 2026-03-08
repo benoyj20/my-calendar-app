@@ -1,4 +1,4 @@
-# Virtual Calendar – USEME
+# Virtual Calendar
 
 This is a command-line **Virtual Calendar** application written in Java (JDK 11).  
 It allows you to create and manage **multiple calendars**, each with its own **time zone**, and to create, edit, copy, and query single and recurring events.
