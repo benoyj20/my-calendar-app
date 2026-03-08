@@ -10,6 +10,34 @@ The application supports:
 - Exporting calendars as **CSV** and **iCal (.ical)** for Google Calendar
 - **Interactive**, **headless** and **GUI** modes
 
+## 🚀 Getting Started
+
+This is the standard lightweight version of the application. It requires **Java 11** to be installed on your computer.
+
+### 1. Prerequisites
+* **Java 11 or newer**: Ensure you have the correct version by running `java -version` in your terminal.
+
+### 2. Download the Application
+1.  Navigate to the [Releases](https://github.com/benoyj20/my-calendar-app/releases/tag/v1.0.0) page.
+2.  Download the `calendar-1.0.jar` file from the latest release.
+
+### 3. Running the App
+Open your terminal or command prompt, navigate to the download folder, and use one of the following commands:
+
+* **GUI Mode (Default)**:
+    ```bash
+    java -jar calendar-1.0.jar
+    ```
+* **Interactive Mode**:
+    ```bash
+    java -jar calendar-1.0.jar --mode interactive
+    ```
+   
+* **Headless Mode (Scripted)**:
+    ```bash
+    java -jar calendar-1.0.jar --mode headless <path_to_commands.txt>
+    ```
+    
 The main class is:
 
 - `src/main/java/CalendarRunner.java`
