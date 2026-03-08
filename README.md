@@ -1,114 +1,435 @@
-# Overview
+# Virtual Calendar – USEME
 
-In this iteration of this project, you will build a view
-for the calendar application, featuring a graphical user interface.
-This will allow a user to interactively create,edit, and view events in
-a digital calendar. The result of this iteration will be a calendar that
-a user can interact with in a text-based interface, a GUI, as well as use scripting in headless mode.
+This is a command-line **Virtual Calendar** application written in Java (JDK 11).  
+It allows you to create and manage **multiple calendars**, each with its own **time zone**, and to create, edit, copy, and query single and recurring events.
 
-# 1 Graphical View
+The application supports:
 
-## 1.1 General Constraints
+- Multiple named calendars with different time zones
+- Copying events and event series between calendars (with time-zone conversion)
+- Exporting calendars as **CSV** and **iCal (.ical)** for Google Calendar
+- **Interactive**, **headless** and **GUI** modes
 
-1. You must use the Java Swing library to build the user interface of this application. To this end, you can use the examples discussed in the view module and any class in the official Java Swing library. You are not allowed to use any component or class that is not part of the JDK. 
+The main class is:
 
-2. The GUI should, at a minimum, support a *month view* of a calendar. A month view shows all the days of the current month. A user can navigate to another month in the future or in the past. You are free to add more views (e.g., weekly view, days view, etc.).
+- `src/main/java/CalendarRunner.java`
 
-3. The GUI must expose features listed and described in the next section.
+---
 
-4. The GUI should have support for multiple calendars in any timezone chosen by the user.
+## Requirements
 
-5. You are expected to handle invalid user input via the GUI gracefully. Graceful error handling means that you must detect the cause of the error and inform the user with a useful message that does not leak implementation details but lets the user know how to fix the error.
+- **Java 11** or newer installed (`java -version` should show 11+)
+- **Gradle** (the wrapper script `./gradlew` is already in the project)
 
-6. The layout of the UI should be reasonable. Things should be in proper proportion, and laid out in a reasonable manner. **Buttons/text fields/labels that are oversized, or haphazardly arranged, even if functional, will result in a point deduction.**
+---
 
-7. Each user interaction or user input must be reasonably user-friendly  (e.g. making the user type something when a less error-prone method is  possible is not good UI design). We do not expect snazzy, sophisticated  user-friendly programs. Our standard is: can a user unfamiliar with your code and technical documentation operate the program correctly **without reading your code and technical documentation?**
+## 1. Building the JAR
 
-8. Keep in mind that this is a graphical user interface for your program.  It is not a graphical way to use the same interaction as the text mode. The expectations of the user, and what the user is expected to enter, are not the same as when specifying script commands!
+From the **project root** (the folder that contains `build.gradle`), run:
 
-## 1.2 Expected Feature Set
+```bash
+./gradlew clean jar
+```
 
-The following features must be usable via your graphical user interface.
+(On Windows you can use:)
 
-1. A user should be able to create a new calendar for a particular timezone.
+```bash
+gradlew.bat clean jar
+```
 
-2. A user should be able to select a calendar and create, edit, view events for the selected calendar.
+If the build succeeds, the runnable JAR will be here:
 
-3. A user should know which calendar they are on when interacting with the GUI. The way you distinguish a calendar is upto you. One example would be to color code the different calendars.
+```text
+build/libs/calendar-1.0.jar
+```
 
-4. A user should not be forced to create a new calendar. Instead, the GUI should allow a user to work with a default calendar in the user's current timezone based on their system setting.
+*(If the version ever changes, just use the JAR that appears in `build/libs/`.)*
 
-5. A user should be able to select a specific day of a month and view all events scheduled on that day in the calendar's timezone.
+---
 
-6. A user should be able to create a new event on a selected day of a month. The event can be a single or recurring event. For recurring events, a user should be able to specify the weekdays on which the event will repeat and the frequency in terms of number of occurrences or until an end date.
+## 2. Running the Application
 
-7. A user should be able to select a specific day of a month and edit events.
+- `java -jar build/libs/calendar-1.0.jar` – opens in GUI mode
+- `java -jar build/libs/calendar-1.0.jar --mode interactive` – type commands one by one
+- `java -jar build/libs/calendar-1.0.jar --mode headless <commandFile>` – read commands from a file
 
-The user should be able to identify a single event and edit it. The user should also be able to identify multiple events with the same name, possibly from a user-specific point in time, and edit them together.
+All examples below assume the JAR is `build/libs/calendar-1.0.jar`.
 
+### 2.1 Interactive Mode
 
-## 1.3 Design Considerations
+Run:
 
-Carefully design the interaction between a view and a controller,
-and formalize the interactions with view and controller interfaces.
-You may design a single controller that manages the program in
-interactive, headless and GUI modes. Different controllers for different views are also possible if the views are very different from each other.
-However, be mindful of the MVC principles and separation between  the model, view and controller. When designing, always ask: "can I change one part with no/minimal changes to the others?"
+```bash
+java -jar build/libs/calendar-1.0.jar --mode interactive
+```
 
-## 1.4 Testing
+You’ll see a welcome menu and then a prompt:
 
-Think carefully about which parts of the program require testing. For example, you are not expected to test whether a particular button click produces the desired result. In that sense, testing the actual GUI is optional. However, you should test whether the controller does what it is supposed to in reaction to this happening.
+```text
+Ready for your first command.
+>
+```
 
-# 2 Program Execution
+Now you can type commands manually, for example:
 
-## 2.1 Creating a JAR File
+```text
+create calendar --name Work --timezone America/New_York
+create calendar --name School --timezone Europe/London
+use calendar --name Work
+create event "Kickoff Meeting" from 2025-01-13T09:00 to 2025-01-13T10:00
+print events on 2025-01-13
+export cal work.csv
+exit
+```
 
-A user should be able to run your application using a JAR file. To create a JAR file run the command ./gradlew jar. This will create a JAR file in the build/libs directory. You can run the jar using the command java -jar build/libs/JARNAME.jar. You can provide arguments after the jar file path.
+Type `exit` to close the program.
 
-You should assume that the user will run your program from this project's root. You must ensure that file paths that your program relies on are platform independent.
+---
 
-## 2.2 Command-line arguments
+### 2.2 Headless Mode (recommended for grading)
 
-Your program (from IntelliJ or the JAR file) should accept command-line inputs. Three command-line inputs are valid:
+Headless mode runs a script of commands from a text file.
 
-* `java -jar JARNAME.jar --mode headless path-of-script-file`: when invoked in this manner the program should open the script file, execute it and then exit. Invalid commands should be handled gracefully with appropriate error messages. This is how the program worked in the previous iteration.
+This repo already includes:
 
-* `java -jar JARNAME.jar --mode interactive`: when invoked in this manner the program should open in an interactive text mode, allowing the user to type the script and execute it one line at a time. This is how the program worked in the previous iteration.
+- `res/commands.txt` – a **valid** command script that:
+    - creates calendars in different time zones
+    - creates several one-off and recurring events
+    - edits events and series
+    - copies events between calendars
+    - prints events and status
+    - exports calendars to `.csv` and `.ical`
+- `res/invalid.txt` – a script that contains **at least one invalid command** (to show error handling)
 
-* `java -jar JARNAME.jar`: when invoked in this manner the program should open the graphical user interface. This is what will happen if you simply double-click on the jar file.
+To run the main scenario in `res/commands.txt`:
 
-Any other command-line arguments are invalid: in these cases the program should display an error message suitably and quit.
+```bash
+java -jar build/libs/calendar-1.0.jar --mode headless res/commands.txt
+```
 
-# 3 What to submit
+To run the invalid commands file:
 
-- Submit a res/ folder with the following:
-  - A screenshot showing your GUI. 
-  - A `Misc.md` file with the following information:
-    - `A list of changes to the design of your program, along with a brief justification of each. **Describing changes only in paragraph form will result in a point deduction.**
-    - Which features work and which do not. 
-    - Anything else you need us to know when we grade.
-  - A txt file, commands.txt, with the list of valid commands.
-  - A txt file, invalid.txt with a list of commands where at least one command is invalid.
-- A USEME.md file that contains:
-  - Instructions to run your program in different modes using examples.
-  - a bullet-point list of how to use your GUI to use each operation supported by your program. Screenshots would be helpful, but not necessary.
-- The main method must be in the class 'src/main/java/CalendarRunner.java'.
-- Complete the [anonymous peer evaluation survey](https://forms.gle/11qoosf7ukmVFWuT9). You do not need to take the survey if you are working alone.
+```bash
+java -jar build/libs/calendar-1.0.jar --mode headless res/invalid.txt
+```
 
-# Grading Criteria
+> **Important:** In any commands file, the **last line must be**  
+> `exit`  
+> or the program will print an error that the file ended without an `exit` command.
 
-1. The completeness, layout, and behavior of your GUI.
+---
 
-2. Whether your design aligns with MVC and SOLID principles.
+## 3. Example `commands.txt` (Headless)
 
-3. Whether you have addressed issues in the previous version.
+Here is a simplified example of the kind of script supported (the one in `res/commands.txt` is more extensive, but follows this pattern):
 
-4. Well-structured and clean code with relevant documentation.
+```text
+create calendar --name Work --timezone America/New_York
+create calendar --name School --timezone Europe/London
 
-5. Avoid code smells wherever relevant.
+use calendar --name Work
 
-6. Completeness and correctness of your tests as evidenced by running them and coverage metrics for the controller and model.
+create event "Kickoff Meeting" from 2025-01-13T09:00 to 2025-01-13T10:00
+create event "Daily Standup" from 2025-01-14T09:30 to 2025-01-14T09:45 repeats MTWRF for 5 times
+create event "All Hands" on 2025-01-15 repeats W for 3 times
+create event "Workshop" on 2025-02-05
+create event "Office Hours" on 2025-01-20 repeats M for 4 times
 
-7. Proper access modifiers.
+edit event location "Daily Standup" from 2025-01-14T09:30 to 2025-01-14T09:45 with "Zoom"
+edit events description "Daily Standup" from 2025-01-14T09:30 with "Daily team check-in"
+edit series subject "All Hands" from 2025-01-15T08:00 with "All Hands Meeting"
 
-8. Expected formatting style.
+copy event "Kickoff Meeting" on 2025-01-13T09:00 --target School to 2025-01-20T10:00
+copy events on 2025-01-15 --target School to 2025-01-25
+copy events between 2025-01-13 and 2025-02-05 --target School to 2025-02-01
+
+print events on 2025-01-15
+print events from 2025-01-13T00:00 to 2025-01-21T23:59
+show status on 2025-01-15T09:30
+
+export cal workmain.csv
+export cal workmain.ical
+
+use calendar --name School
+print events from 2025-01-20T00:00 to 2025-02-10T23:59
+export cal school.csv
+export cal school.ical
+
+exit
+```
+
+---
+
+## 4. Command Reference (Summary)
+
+### 4.1 General Rules
+
+- Commands are **case-insensitive** (for keywords like `create`, `from`, `print`).
+- Values (calendar names, subjects, locations) are **case-sensitive**.
+- If a subject or calendar name contains spaces, put it in **double quotes**:
+    - `create calendar --name "Work Calendar" --timezone America/New_York`
+    - `create event "Final Exam" on 2025-12-01`
+- Date/time formats:
+    - `<date>`: `YYYY-MM-DD` (e.g., `2025-01-15`)
+    - `<time>`: `hh:mm` in 24-hour time (e.g., `09:00`, `14:30`)
+    - `<datetime>`: `YYYY-MM-DDThh:mm` (e.g., `2025-01-15T09:00`)
+    - `<weekdays>`: sequence of `M,T,W,R,F,S,U` (e.g., `MWF`, `TR`)
+
+### 4.2 Calendar Management
+
+- Create a calendar with time zone:
+
+  ```text
+  create calendar --name <calName> --timezone <area/location>
+  ```
+
+  Example:  
+  `create calendar --name Work --timezone America/New_York`
+
+- Edit a calendar’s name or timezone:
+
+  ```text
+  edit calendar --name <calName> --property <name|timezone> <newValue>
+  ```
+
+  Example:  
+  `edit calendar --name Work --property timezone Europe/London`
+
+- Set the active calendar:
+
+  ```text
+  use calendar --name <calName>
+  ```
+
+  Example:  
+  `use calendar --name Work`
+
+All event commands below operate on the **currently active** calendar.
+
+---
+
+### 4.3 Creating Events
+
+- Single timed event:
+
+  ```text
+  create event <subject> from <datetime> to <datetime>
+  ```
+
+- Timed recurring event (repeat N times on given weekdays):
+
+  ```text
+  create event <subject> from <datetime> to <datetime> repeats <weekdays> for <N> times
+  ```
+
+- Timed recurring event (until a given date, inclusive):
+
+  ```text
+  create event <subject> from <datetime> to <datetime> repeats <weekdays> until <date>
+  ```
+
+- Single all-day event:
+
+  ```text
+  create event <subject> on <date>
+  ```
+
+- All-day recurring event (repeat N times):
+
+  ```text
+  create event <subject> on <date> repeats <weekdays> for <N> times
+  ```
+
+- All-day recurring event (until date, inclusive):
+
+  ```text
+  create event <subject> on <date> repeats <weekdays> until <date>
+  ```
+
+---
+
+### 4.4 Editing Events / Series
+
+`<property>` can be: `subject`, `start`, `end`, `description`, `location`, `status`.
+
+- Edit a **single** instance:
+
+  ```text
+  edit event <property> <subject> from <datetime> to <datetime> with <newValue>
+  ```
+
+- Edit an instance and all **future** events in the series:
+
+  ```text
+  edit events <property> <subject> from <datetime> with <newValue>
+  ```
+
+- Edit **entire** series (past, present, future):
+
+  ```text
+  edit series <property> <subject> from <datetime> with <newValue>
+  ```
+
+If an edit would cause two events in the same calendar to have the **same subject, start, and end**, the edit is rejected with an error.
+
+---
+
+### 4.5 Copying Events Between Calendars
+
+These commands copy from the **active** calendar to a **target** calendar, adjusting times to the target calendar’s time zone.
+
+- Copy a single event:
+
+  ```text
+  copy event <subject> on <datetime> --target <calName> to <datetime>
+  ```
+
+- Copy all events on a specific date:
+
+  ```text
+  copy events on <date> --target <calName> to <date>
+  ```
+
+- Copy all events overlapping a date range:
+
+  ```text
+  copy events between <date> and <date> --target <calName> to <date>
+  ```
+
+If only part of a series overlaps the range, only the overlapping instances are copied, and they remain part of a series in the destination calendar.
+
+---
+
+### 4.6 Queries
+
+- All events on a specific date:
+
+  ```text
+  print events on <date>
+  ```
+
+- All events in a date/time range:
+
+  ```text
+  print events from <datetime> to <datetime>
+  ```
+
+- Busy/Available at a specific time:
+
+  ```text
+  show status on <datetime>
+  ```
+
+---
+
+### 4.7 Export & Exit
+
+- Export the active calendar (CSV or iCal):
+
+  ```text
+  export cal <fileName.csv>
+  export cal <fileName.ical>
+  ```
+
+  The program prints the **absolute path** of the exported file. These files can be imported into Google Calendar.
+
+- Exit the application:
+
+  ```text
+  exit
+  ```
+
+# Using the GUI
+
+Below is the guide to performing all supported operations.
+
+---
+
+## Calendar Management
+
+### Create a New Calendar
+1. Click the **"New Cal"** button in the top-left corner.
+2. Enter a unique **Name** and a valid **Timezone** (e.g., `America/New_York`, `UTC`).
+3. Click **OK**. The new calendar will automatically be selected.
+
+### Switch Calendars
+- Use the dropdown menu next to **"Calendar:"** in the top-left toolbar to choose the active calendar.
+
+### Edit Calendar
+1. Select the calendar you want to modify using the dropdown.
+2. Click **"Edit Cal"**.
+3. Update the name or timezone in the popup dialog.
+
+### Delete Calendar
+1. Select the calendar from the dropdown.
+2. Click **"Delete Cal"**.
+3. Confirm deletion when the warning dialog appears.
+
+---
+
+## Viewing Events
+
+### Change View Mode
+- Toggle between **Month**, **Week**, and **Day** views using the buttons in the top-right of the window.
+
+### Navigate Dates
+- Use the **<** and **>** buttons to move backward or forward in time.
+- The navigation depends on the current view (month, week, or day).
+- The active date range appears between the navigation buttons.
+
+### View Event Details
+- Click any event block in the calendar grid or list.
+- A popup will display details such as **Description**, **Location** , **Start**, **End**, and **Status**.
+
+---
+
+## Event Management
+
+### Create an Event
+1. Click the **"Create New Event"** button at the bottom of the window  
+   (or click **+** in Week view or **Add Event on <date>** in Day view .
+2. Fill in the information:
+    - **Subject**
+    - **Start/End Dates**
+    - **Start/End Times**
+    - **Description**
+    - **Location**
+    - **Status**
+        - Leave times blank for an **All-Day Event**.
+
+#### Recurrence
+- Select the weekdays on which the event repeats (M, T, W).
+- Choose a repeat type:
+    - **Count** — number of occurrences
+    - **Until** — end date
+- Enter the corresponding value (`5` for count or `2025-12-31` for an end date).
+- Click **Save**.
+
+### Edit an Event
+1. Click an event to open the Details dialog.
+2. Click **Edit**.
+3. Modify the fields and click **Save**.
+
+If the event is part of a recurring series, choose the edit scope:
+- **Single Event** — only this instance
+- **Future Events** — this and all following instances
+- **All Events** — the entire series
+
+### Search and Bulk Edit
+1. Click **"Search and Edit"** in the top-right corner.
+2. Choose a search filter:
+    - **Subject**
+    - **Time Range**
+3. Enter filter values.
+4. Select the property to update (Status, Location, etc.).
+5. Click **Apply Changes** to update all matching events.
+
+### Export Calendar
+1. Click **"Export Calendar"** in the top-right corner.
+2. Select the file destination and name.
+3. Choose the format:
+    - **CSV**
+    - **iCal**
+
+---
+
